@@ -5,7 +5,10 @@ import monitoring
 
 # TODO
 
+# WIDGETS
+
 class WebsiteGrid(npyscreen.GridColTitles):
+    # TODO Annoying thing: to exit the grid you need to press tab. Overwrite h_... to leave the grid when at the end
     def __init__(self, *args, **keywords):
         super(WebsiteGrid, self).__init__(*args, **keywords)
         self.col_titles = ['Website', 'Interval Check', 'Status']
@@ -13,29 +16,18 @@ class WebsiteGrid(npyscreen.GridColTitles):
         # TODO Stop hard coding this
         self.values = self.fill_grid()
         self.select_whole_line = True
-
-    def actionHighlighted(self, act_on_this, keypress):
-        print(act_on_this, keypress)
-
-    def set_up_handlers(self):
-        super(WebsiteGrid, self).set_up_handlers()
         self.handlers["^O"] = self.action_selected
 
     def action_selected(self, inpt):
-        print(self.selected_row())
+        """Open a form for more stats about the website"""
+        self.parent.parentApp.getForm('WEBSITE_INFO').value = self.edit_cell[0]
+        self.parent.parentApp.switchForm('WEBSITE_INFO')
 
     def custom_print_cell(self, actual_cell, cell_display_value):
         pass
-        # TODO Do that properly
-        # if cell_display_value =='FAIL':
-        #    actual_cell.color = 'DANGER'
-        # elif cell_display_value == 'PASS':
-        #    actual_cell.color = 'GOOD'
-        # else:
-        #    actual_cell.color = 'DEFAULT'
 
     def fill_grid(self):
-        l = self.parent.parentApp.websitesContainer.websites
+        l = self.parent.parentApp.websitesContainer.list_all_websites()
         return l
 
 
@@ -45,6 +37,8 @@ class AlertBox(npyscreen.TitlePager):
         self.values = [["""{} Website website is down. availability=availablility, time=time""".format(i)] for i
                        in range(100)]
 
+
+# FORMS
 
 class AddWebsiteForm(npyscreen.ActionForm):
     # TODO Make the form smaller to get something nicer
@@ -81,15 +75,26 @@ class AddWebsiteForm(npyscreen.ActionForm):
             pass
 
 
+class WebsiteInfoForm(npyscreen.Form):
+    def create(self):
+        self.value = None
+        self.wgPager = self.add(npyscreen.TitlePager)
+
+    def beforeEditing(self):
+        self.wgPager.name = "Website " + str(self.value)
+        self.wgPager.values = self.parentApp.websitesContainer.get_website(self.value)
+
+    def afterEditing(self):
+        self.parentApp.switchForm('MAIN')
+
+
 class MainForm(npyscreen.FormWithMenus):
     def create(self):
         # TODO Add the possibility to select a website and see more detailed stats
-        self.grid_monitor = self.add(WebsiteGrid, name='Monitoring', max_height=25)
-        self.alert_box = self.add(AlertBox, name='Alerts', rely=30)
+        self.wgWebsiteGrid = self.add(WebsiteGrid, name='Monitoring', max_height=25)
+        self.wgAlertBox = self.add(AlertBox, name='Alerts', rely=30)
 
         self.main_menu = self.new_menu(name='Main menu')
-        self.website_menu = self.new_menu(name='Website menu')
-
 
         self.main_menu.addItem('Add new website', self.add_new_website, shortcut='a')
 
@@ -97,17 +102,26 @@ class MainForm(npyscreen.FormWithMenus):
         self.parentApp.getForm('ADD_WEBSITE').value = None
         self.parentApp.switchForm('ADD_WEBSITE')
 
+    def beforeEditing(self):
+        self.update_grid()
 
+    def update_grid(self):
+        self.wgWebsiteGrid.values = self.parentApp.websitesContainer.list_all_websites()
+        self.wgWebsiteGrid.display()
 
+    def on_ok(self):
+        self.parentApp.switchForm(None)
+
+# APP
 
 class WebsiteMonitoringApplication(npyscreen.NPSAppManaged):
     def onStart(self):
         self.websitesContainer = monitoring.WebsitesContainer()
         self.addForm('MAIN', MainForm)
         self.addForm('ADD_WEBSITE', AddWebsiteForm)
+        self.addForm('WEBSITE_INFO', WebsiteInfoForm)
 
 
 if __name__ == '__main__':
-    # helpers.hello()
     app = WebsiteMonitoringApplication()
     app.run()
