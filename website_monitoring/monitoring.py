@@ -33,7 +33,9 @@ class WebsiteHandler(object):
         self.is_running = False
 
     def ping_website(self):
+        """Return info from the header of the website"""
         # TODO Handle all exceptions possible : status code, no connexion, website does not exist...
+        # TODO accurate docstring
         try:
             response = requests.head(self.url, timeout=self.__class__.timeout)
         except TimeoutError:
@@ -41,7 +43,10 @@ class WebsiteHandler(object):
         self.last_elapsed = response.elapsed
         return response.elapsed, response.status_code
 
-    def get_details(self):
+    def get_info_for_grid(self):
+        return [self.name, self.url, self.interval, str(self.last_elapsed)]
+
+    def get_detailed_stats(self):
         return [self.name, self.url, self.interval, str(self.last_elapsed)]
 
 class WebsitesContainer(object):
@@ -51,13 +56,13 @@ class WebsitesContainer(object):
     def add(self, website):
         self.websites.append(WebsiteHandler(*website))
 
-    def get_website(self, index):
-        return self.websites[index].get_details()
+    def get_detailed_stats(self, index):
+        return self.websites[index].get_detailed_stats()
 
     def list_all_websites(self):
         grid_info = []
         for website in self.websites:
-            grid_info.append(website.get_details())
+            grid_info.append(website.get_info_for_grid())
         return grid_info
 
 # def main():
@@ -68,9 +73,9 @@ class WebsitesContainer(object):
 #
 #     print("starting...")
 #     try:
-#         sleep(50)  # your long-running job goes here...
+#         sleep(50)
 #     finally:
-#         w1.stop()  # better in a try/finally block to make sure the program ends!
+#         w1.stop()
 #         w2.stop()
 
 

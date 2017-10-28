@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 import npyscreen
 import monitoring
+import json
 
 
-# TODO
+# TODO To handle the update of the grid: only one thread, and check if only one or 2 columns updated
 
 # WIDGETS
 
-class WebsiteGrid(npyscreen.GridColTitles):
+class WebsiteGridWidget(npyscreen.GridColTitles):
     # TODO Annoying thing: to exit the grid you need to press tab. Overwrite h_... to leave the grid when at the end
     def __init__(self, *args, **keywords):
-        super(WebsiteGrid, self).__init__(*args, **keywords)
+        super(WebsiteGridWidget, self).__init__(*args, **keywords)
         self.col_titles = ['Website', 'Interval Check', 'Status']
         # TODO It is possible to set the number of columns
         # TODO Stop hard coding this
@@ -19,7 +20,6 @@ class WebsiteGrid(npyscreen.GridColTitles):
         self.handlers["^O"] = self.action_selected
 
     def action_selected(self, inpt):
-        """Open a form for more stats about the website"""
         self.parent.parentApp.getForm('WEBSITE_INFO').value = self.edit_cell[0]
         self.parent.parentApp.switchForm('WEBSITE_INFO')
 
@@ -31,16 +31,16 @@ class WebsiteGrid(npyscreen.GridColTitles):
         return l
 
 
-class AlertBox(npyscreen.TitlePager):
+class AlertBoxWidget(npyscreen.TitlePager):
     def __init__(self, *args, **keywords):
-        super(AlertBox, self).__init__(*args, **keywords)
+        super(AlertBoxWidget, self).__init__(*args, **keywords)
         self.values = [["""{} Website website is down. availability=availablility, time=time""".format(i)] for i
                        in range(100)]
 
 
 # FORMS
 
-class AddWebsiteForm(npyscreen.ActionForm):
+class AddWebsiteForm(npyscreen.ActionFormV2):
     # TODO Make the form smaller to get something nicer
     def create(self):
         self.name = "New Website"
@@ -57,7 +57,7 @@ class AddWebsiteForm(npyscreen.ActionForm):
 
     def on_ok(self):
         # TODO If confirmed, ask if the user want to check the settings
-        # TODO Check if the values seem to be correct (check if thats an int...)
+        # TODO Check if the values seem to be correct (check if thats an int...), check if no empty values
         first_ping = npyscreen.notify_yes_no('Do you want to first ping the website?', 'Check', editw=1)
         if first_ping:
             npyscreen.notify_wait('Checking...')
@@ -74,6 +74,30 @@ class AddWebsiteForm(npyscreen.ActionForm):
         else:
             pass
 
+class ImportWebsiteForm(npyscreen.ActionFormV2):
+    def create(self):
+        self.wgFilenameHolder = self.add(npyscreen.TitleFilenameCombo, name='Choose the file to import', begin_entry_at=40)
+
+    def import_websites(self):
+        # TODO add exceptions
+        with open(self.wgFilenameHolder.value) as f:
+            json_website = f.read()
+        decoded = json.loads(json_website)
+        for website in decoded['websites']:
+            self.parentApp.websitesContainer.add(list(website.values()))
+
+    def on_ok(self):
+        self.import_websites()
+        npyscreen.notify('Import done.', 'Import')
+        self.parentApp.switchForm('MAIN')
+
+    def on_cancel(self):
+        exiting = npyscreen.notify_yes_no('Are you sure you want to exit without importing?', editw=1)
+        if exiting:
+            npyscreen.notify('The import was NOT done.', 'Import')
+            self.parentApp.switchForm('MAIN')
+        else:
+            pass
 
 class WebsiteInfoForm(npyscreen.Form):
     def create(self):
@@ -82,7 +106,7 @@ class WebsiteInfoForm(npyscreen.Form):
 
     def beforeEditing(self):
         self.wgPager.name = "Website " + str(self.value)
-        self.wgPager.values = self.parentApp.websitesContainer.get_website(self.value)
+        self.wgPager.values = self.parentApp.websitesContainer.get_detailed_stats(self.value)
 
     def afterEditing(self):
         self.parentApp.switchForm('MAIN')
@@ -91,16 +115,21 @@ class WebsiteInfoForm(npyscreen.Form):
 class MainForm(npyscreen.FormWithMenus):
     def create(self):
         # TODO Add the possibility to select a website and see more detailed stats
-        self.wgWebsiteGrid = self.add(WebsiteGrid, name='Monitoring', max_height=25)
-        self.wgAlertBox = self.add(AlertBox, name='Alerts', rely=30)
+        self.wgWebsiteGrid = self.add(WebsiteGridWidget, name='Monitoring', max_height=25)
+        self.wgAlertBox = self.add(AlertBoxWidget, name='Alerts', rely=30)
 
         self.main_menu = self.new_menu(name='Main menu')
 
-        self.main_menu.addItem('Add new website', self.add_new_website, shortcut='a')
+        self.main_menu.addItem('Add new website', self.get_form_add_website, shortcut='a')
+        self.main_menu.addItem('Import list of website', self.get_form_import_list_website, shortcut='i')
 
-    def add_new_website(self):
+    def get_form_add_website(self):
         self.parentApp.getForm('ADD_WEBSITE').value = None
         self.parentApp.switchForm('ADD_WEBSITE')
+
+    def get_form_import_list_website(self):
+        self.parentApp.getForm('IMPORT_WEBSITE').value = None
+        self.parentApp.switchForm('IMPORT_WEBSITE')
 
     def beforeEditing(self):
         self.update_grid()
@@ -112,6 +141,7 @@ class MainForm(npyscreen.FormWithMenus):
     def on_ok(self):
         self.parentApp.switchForm(None)
 
+
 # APP
 
 class WebsiteMonitoringApplication(npyscreen.NPSAppManaged):
@@ -120,6 +150,7 @@ class WebsiteMonitoringApplication(npyscreen.NPSAppManaged):
         self.addForm('MAIN', MainForm)
         self.addForm('ADD_WEBSITE', AddWebsiteForm)
         self.addForm('WEBSITE_INFO', WebsiteInfoForm)
+        self.addForm('IMPORT_WEBSITE', ImportWebsiteForm)
 
 
 if __name__ == '__main__':
