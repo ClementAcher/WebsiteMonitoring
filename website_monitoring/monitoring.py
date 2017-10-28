@@ -38,20 +38,26 @@ class WebsiteHandler(object):
         print(self.name, response.elapsed, response.status_code)
         return response.elapsed, response.status_code
 
+class WebsitesContainer(object):
+    def __init__(self):
+        self.websites = []
 
-def main():
-    from time import sleep
+    def add(self, website):
+        self.websites.append(website)
 
-    w1 = WebsiteHandler('Google', 'https://www.google.fr', 2)
-    w2 = WebsiteHandler('StackOverFlow', 'https://stackoverflow.com/', 5)
+# def main():
+#     from time import sleep
+#
+#     w1 = WebsiteHandler('Google', 'https://www.google.fr', 2)
+#     w2 = WebsiteHandler('StackOverFlow', 'https://stackoverflow.com/', 5)
+#
+#     print("starting...")
+#     try:
+#         sleep(50)  # your long-running job goes here...
+#     finally:
+#         w1.stop()  # better in a try/finally block to make sure the program ends!
+#         w2.stop()
 
-    print("starting...")
-    try:
-        sleep(50)  # your long-running job goes here...
-    finally:
-        w1.stop()  # better in a try/finally block to make sure the program ends!
-        w2.stop()
 
-
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
