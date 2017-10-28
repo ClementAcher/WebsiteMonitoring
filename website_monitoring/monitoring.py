@@ -3,9 +3,9 @@ from threading import Timer
 
 
 class WebsiteHandler(object):
-    # TODO Do two different methods: one for the grid, one for the "more info" part
     timeout = 1
 
+    # TODO Implement the final data structure to store the different metrics
     def __init__(self, name, url, interval):
         self._timer = None
         self.name = name
@@ -14,7 +14,7 @@ class WebsiteHandler(object):
         self.is_running = False
         # TODO Maybe not starting directly
         self.start()
-    #     TODO change the following
+        # TODO change the following
         self.last_elapsed = None
 
     def _run(self):
@@ -33,9 +33,7 @@ class WebsiteHandler(object):
         self.is_running = False
 
     def ping_website(self):
-        """Return info from the header of the website"""
-        # TODO Handle all exceptions possible : status code, no connexion, website does not exist...
-        # TODO accurate docstring
+        # TODO Handle all exceptions possible : status code, no connexion, website does not exist... See requests doc
         try:
             response = requests.head(self.url, timeout=self.__class__.timeout)
         except TimeoutError:
@@ -48,6 +46,7 @@ class WebsiteHandler(object):
 
     def get_detailed_stats(self):
         return [self.name, self.url, self.interval, str(self.last_elapsed)]
+
 
 class WebsitesContainer(object):
     def __init__(self):

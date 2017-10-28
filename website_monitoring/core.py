@@ -12,9 +12,8 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
     # TODO Annoying thing: to exit the grid you need to press tab. Overwrite h_... to leave the grid when at the end
     def __init__(self, *args, **keywords):
         super(WebsiteGridWidget, self).__init__(*args, **keywords)
+        # TODO Implement the final grid
         self.col_titles = ['Website', 'Interval Check', 'Status']
-        # TODO It is possible to set the number of columns
-        # TODO Stop hard coding this
         self.values = self.fill_grid()
         self.select_whole_line = True
         self.handlers["^O"] = self.action_selected
@@ -24,11 +23,12 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
         self.parent.parentApp.switchForm('WEBSITE_INFO')
 
     def custom_print_cell(self, actual_cell, cell_display_value):
+        # TODO custom_print_cell
         pass
 
     def fill_grid(self):
-        l = self.parent.parentApp.websitesContainer.list_all_websites()
-        return l
+        values = self.parent.parentApp.websitesContainer.list_all_websites()
+        return values
 
 
 class AlertBoxWidget(npyscreen.TitlePager):
@@ -41,11 +41,10 @@ class AlertBoxWidget(npyscreen.TitlePager):
 # FORMS
 
 class AddWebsiteForm(npyscreen.ActionFormV2):
-    # TODO Make the form smaller to get something nicer
+    # TODO Improve the look (smaller, add line between wg)
     def create(self):
         self.name = "New Website"
         entry_pos = 25
-        # TODO Add line between
         self.wgName = self.add(npyscreen.TitleText, name="Entry name:", begin_entry_at=entry_pos)
         self.wgAddress = self.add(npyscreen.TitleText, name="Website address:", begin_entry_at=entry_pos)
         self.wgInterval = self.add(npyscreen.TitleText, name="Check intervals:", begin_entry_at=entry_pos)
@@ -74,9 +73,11 @@ class AddWebsiteForm(npyscreen.ActionFormV2):
         else:
             pass
 
+
 class ImportWebsiteForm(npyscreen.ActionFormV2):
     def create(self):
-        self.wgFilenameHolder = self.add(npyscreen.TitleFilenameCombo, name='Choose the file to import', begin_entry_at=40)
+        self.wgFilenameHolder = self.add(npyscreen.TitleFilenameCombo, name='Choose the file to import',
+                                         begin_entry_at=40)
 
     def import_websites(self):
         # TODO add exceptions
@@ -99,6 +100,7 @@ class ImportWebsiteForm(npyscreen.ActionFormV2):
         else:
             pass
 
+
 class WebsiteInfoForm(npyscreen.Form):
     def create(self):
         self.value = None
@@ -114,7 +116,6 @@ class WebsiteInfoForm(npyscreen.Form):
 
 class MainForm(npyscreen.FormWithMenus):
     def create(self):
-        # TODO Add the possibility to select a website and see more detailed stats
         self.wgWebsiteGrid = self.add(WebsiteGridWidget, name='Monitoring', max_height=25)
         self.wgAlertBox = self.add(AlertBoxWidget, name='Alerts', rely=30)
 
