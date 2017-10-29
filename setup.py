@@ -22,7 +22,7 @@ setup(
     url='https://github.com/ClementAcher/WebsiteMonitoring',
     license=license,
     install_requires=requirements,
-    scripts=['website_monitoring/core.py'],
+    # scripts=['website_monitoring/core.py'],
     packages=find_packages(exclude=('tests', 'docs'))
 )
 

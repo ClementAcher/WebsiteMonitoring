@@ -1,9 +1,12 @@
 import requests
 from threading import Timer
 import datetime
+import pandas as pd
+
 
 class WebsiteHandler(object):
-    timeout = 1
+    # TODO Better define this
+    timeout = 2
 
     # TODO Implement the final data structure to store the different metrics
     def __init__(self, name, url, interval):
@@ -14,9 +17,9 @@ class WebsiteHandler(object):
         self.is_running = False
         # TODO Maybe not starting directly
         self.start()
-        # TODO change the following
-        self.last_elapsed = None
-        self.last_time_checked = None
+
+        # TODO See if it is possible to force de type for the columns
+        self.df_history = pd.DataFrame()
 
     def _run(self):
         self.is_running = False
@@ -35,16 +38,49 @@ class WebsiteHandler(object):
 
     def ping_website(self):
         # TODO Handle all exceptions possible : status code, no connexion, website does not exist... See requests doc
-        self.last_time_checked = datetime.datetime.now()
+        now = datetime.datetime.now()
         try:
             response = requests.head(self.url, timeout=self.__class__.timeout)
-        except TimeoutError:
-            return -1, -1
-        self.last_elapsed = response.elapsed
-        return response.elapsed, response.status_code
+        # TODO ReadTimeout instead
+        except requests.ReadTimeout:
+            self.df_history = self.df_history.append({'date': now,
+                                                      'status code': 'Timeout',
+                                                      'elapsed': datetime.timedelta(0),
+                                                      'OK': False}, ignore_index=True)
+        else:
+            self.df_history = self.df_history.append({'date': now,
+                                                      'status code': int(response.status_code),
+                                                      'elapsed': response.elapsed,
+                                                      'OK': True}, ignore_index=True)
+            # return response.elapsed, response.status_code
 
     def get_info_for_grid(self):
-        return [self.name, self.url, self.interval, str(self.last_elapsed), str(self.last_time_checked)]
+
+        # ['Website', 'Interval Check', 'Last Check', 'Last Status', 'Last Resp. Time',
+        #                    'MAX (10 min)', 'AVG (10 min)', 'MAX (1 hour)', 'AVG (1 hour)']
+
+        info = [self.name, self.interval]
+        if self.df_history.empty:
+            info += [None] * 7
+        else:
+            # TODO clean that, a little bit messy
+            tail = self.df_history.tail(n=1).values
+            info += [tail[0, 1].strftime('%H:%M:%S.%f')[:-3],  # Last check
+                     tail[0, 3],  # Last status
+                     tail[0, 2].microseconds / 1000]  # Last Resp. Time
+
+            df_OK = self.df_history['OK'] == 1
+            mask_2min = (self.df_history['date'] > (datetime.datetime.now() - datetime.timedelta(minutes=10))) & df_OK
+            mask_1hour = (self.df_history['date'] > (datetime.datetime.now() - datetime.timedelta(hours=1))) & df_OK
+
+            # TODO Exceptions if empty
+
+            info += [str(self.df_history.loc[mask_2min]['elapsed'].max().microseconds / 1000),
+                     str(self.df_history.loc[mask_2min]['elapsed'].mean().microseconds / 1000),
+                     str(self.df_history.loc[mask_1hour]['elapsed'].max().microseconds / 1000),
+                     str(self.df_history.loc[mask_1hour]['elapsed'].mean().microseconds / 1000)]
+
+        return info
 
     def get_detailed_stats(self):
         return [self.name, self.url, self.interval, str(self.last_elapsed), str(self.last_time_checked)]

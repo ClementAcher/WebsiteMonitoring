@@ -13,8 +13,9 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
     def __init__(self, *args, **keywords):
         super(WebsiteGridWidget, self).__init__(*args, **keywords)
         # TODO Implement the final grid
-        self.default_column_number = 5
-        self.col_titles = ['Website', 'Interval Check', 'Status']
+        self.default_column_number = 9
+        self.col_titles = ['Website', 'Interval Check', 'Last Check', 'Last Status', 'Last Resp. Time',
+                           'MAX (10 min)', 'AVG (10 min)', 'MAX (1 hour)', 'AVG (1 hour)']
         self.values = self.fill_grid()
         self.select_whole_line = True
         self.handlers["^O"] = self.action_selected
@@ -113,6 +114,7 @@ class WebsiteInfoForm(npyscreen.Form):
 
     def beforeEditing(self):
         self.wgPager.name = "Website " + str(self.value)
+        # TODO Totally broken
         self.wgPager.values = self.parentApp.websitesContainer.get_detailed_stats(self.value)
 
     def afterEditing(self):
@@ -122,9 +124,11 @@ class WebsiteInfoForm(npyscreen.Form):
 class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
     GRID_UPDATE_FREQ = 10
     # TODO Change the label of the OK button for something like EXIT if possible
+    # TODO Add a widget on top to tell when was opened the app?
 
     def create(self):
         self.wgWebsiteGrid = self.add(WebsiteGridWidget, name='Monitoring', max_height=25)
+        # TODO Don't hard code rely, otherwise app can't open if terminal not big enough.
         self.wgAlertBox = self.add(AlertBoxWidget, name='Alerts', rely=30)
 
         self.main_menu = self.new_menu(name='Main menu')

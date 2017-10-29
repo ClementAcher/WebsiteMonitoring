@@ -13,6 +13,26 @@
 			"name": "Stanford",
 			"url": "http://cs231n.stanford.edu/",
 			"interval": 7
+		},
+		{
+			"name": "Doc python",
+			"url": "https://docs.python.org/",
+			"interval": 20
+		},
+		{
+			"name": "My Github",
+			"url": "https://github.com/ClementAcher/WebsiteMonitoring",
+			"interval": 2
+		},
+		{
+			"name": "Npyscreen doc",
+			"url": "http://npyscreen.readthedocs.io/",
+			"interval": 100
+		},
+		{
+			"name": "Lovetoride",
+			"url": "https://www.lovetoride.net/",
+			"interval": 3
 		}
 	]
 }
