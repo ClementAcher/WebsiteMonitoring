@@ -1,6 +1,6 @@
 import requests
 from threading import Timer
-
+import datetime
 
 class WebsiteHandler(object):
     timeout = 1
@@ -16,6 +16,7 @@ class WebsiteHandler(object):
         self.start()
         # TODO change the following
         self.last_elapsed = None
+        self.last_time_checked = None
 
     def _run(self):
         self.is_running = False
@@ -34,6 +35,7 @@ class WebsiteHandler(object):
 
     def ping_website(self):
         # TODO Handle all exceptions possible : status code, no connexion, website does not exist... See requests doc
+        self.last_time_checked = datetime.datetime.now()
         try:
             response = requests.head(self.url, timeout=self.__class__.timeout)
         except TimeoutError:
@@ -42,27 +44,31 @@ class WebsiteHandler(object):
         return response.elapsed, response.status_code
 
     def get_info_for_grid(self):
-        return [self.name, self.url, self.interval, str(self.last_elapsed)]
+        return [self.name, self.url, self.interval, str(self.last_elapsed), str(self.last_time_checked)]
 
     def get_detailed_stats(self):
-        return [self.name, self.url, self.interval, str(self.last_elapsed)]
+        return [self.name, self.url, self.interval, str(self.last_elapsed), str(self.last_time_checked)]
 
 
 class WebsitesContainer(object):
     def __init__(self):
-        self.websites = []
+        self.website_handlers = []
 
     def add(self, website):
-        self.websites.append(WebsiteHandler(*website))
+        self.website_handlers.append(WebsiteHandler(*website))
 
     def get_detailed_stats(self, index):
-        return self.websites[index].get_detailed_stats()
+        return self.website_handlers[index].get_detailed_stats()
 
     def list_all_websites(self):
         grid_info = []
-        for website in self.websites:
-            grid_info.append(website.get_info_for_grid())
+        for website_handler in self.website_handlers:
+            grid_info.append(website_handler.get_info_for_grid())
         return grid_info
+
+    def stop_all_checks(self):
+        for website_handler in self.website_handlers:
+            website_handler.stop()
 
 
 class GridUpdater(object):
@@ -78,6 +84,8 @@ class GridUpdater(object):
 
     def updater(self):
         self.wgWebsiteGrid.values = self.main_form.parentApp.websitesContainer.list_all_websites()
+        self.counter += 1
+        # TODO : update different things when self.counter % x == 0
         if self.main_form.parentApp.getHistory()[-1] == 'MAIN':
             self.wgWebsiteGrid.display()
 

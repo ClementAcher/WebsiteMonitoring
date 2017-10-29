@@ -13,6 +13,7 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
     def __init__(self, *args, **keywords):
         super(WebsiteGridWidget, self).__init__(*args, **keywords)
         # TODO Implement the final grid
+        self.default_column_number = 5
         self.col_titles = ['Website', 'Interval Check', 'Status']
         self.values = self.fill_grid()
         self.select_whole_line = True
@@ -118,7 +119,10 @@ class WebsiteInfoForm(npyscreen.Form):
         self.parentApp.switchForm('MAIN')
 
 
-class MainForm(npyscreen.FormWithMenus):
+class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
+    GRID_UPDATE_FREQ = 10
+    # TODO Change the label of the OK button for something like EXIT if possible
+
     def create(self):
         self.wgWebsiteGrid = self.add(WebsiteGridWidget, name='Monitoring', max_height=25)
         self.wgAlertBox = self.add(AlertBoxWidget, name='Alerts', rely=30)
@@ -128,7 +132,7 @@ class MainForm(npyscreen.FormWithMenus):
         self.main_menu.addItem('Add new website', self.get_form_add_website, shortcut='a')
         self.main_menu.addItem('Import list of website', self.get_form_import_list_website, shortcut='i')
 
-        self.grid_updater = monitoring.GridUpdater(10, self.wgWebsiteGrid, self)
+        self.grid_updater = monitoring.GridUpdater(self.__class__.GRID_UPDATE_FREQ, self.wgWebsiteGrid, self)
 
     def get_form_add_website(self):
         self.parentApp.getForm('ADD_WEBSITE').value = None
@@ -139,9 +143,6 @@ class MainForm(npyscreen.FormWithMenus):
         self.parentApp.switchForm('IMPORT_WEBSITE')
 
     def beforeEditing(self):
-        self.update_grid()
-
-    def update_grid(self):
         self.wgWebsiteGrid.values = self.parentApp.websitesContainer.list_all_websites()
         self.wgWebsiteGrid.display()
 
@@ -150,6 +151,11 @@ class MainForm(npyscreen.FormWithMenus):
         self.wgAlertBox.display()
 
     def on_ok(self):
+        # This button will stop the app.
+        # Stopping the threads:
+        self.parentApp.websitesContainer.stop_all_checks()
+        self.grid_updater.stop()
+
         self.parentApp.switchForm(None)
 
 
