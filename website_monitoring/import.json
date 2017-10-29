@@ -1,0 +1,18 @@
+{
+	"websites": [{
+			"name": "Google",
+			"url": "https://www.google.com",
+			"interval": 5
+		},
+		{
+			"name": "Facebook",
+			"url": "https://www.facebook.com/",
+			"interval": 10
+		},
+		{
+			"name": "Stanford",
+			"url": "http://cs231n.stanford.edu/",
+			"interval": 7
+		}
+	]
+}
