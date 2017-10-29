@@ -4,12 +4,12 @@ import monitoring
 import json
 
 
-# TODO To handle the update of the grid: only one thread, and check if only one or 2 columns updated
-
 # WIDGETS
 
 class WebsiteGridWidget(npyscreen.GridColTitles):
     # TODO Annoying thing: to exit the grid you need to press tab. Overwrite h_... to leave the grid when at the end
+    # TODO Bug: when right arrow on the empty grid, exception raised. Better init or overwrite the method linked to the right arrow
+    # TODO Check what happens if too many websites for the grid
     def __init__(self, *args, **keywords):
         super(WebsiteGridWidget, self).__init__(*args, **keywords)
         # TODO Implement the final grid
