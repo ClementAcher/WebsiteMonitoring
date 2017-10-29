@@ -9,15 +9,19 @@ with open('README.rst') as f:
 with open('LICENSE') as f:
     license = f.read()
 
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+
 setup(
     name='website_monitoring',
-    version='0.1.0',
+    version='1.0dev',
     description='Website availability & performance monitoring',
     long_description=readme,
     author='Clément Acher',
     author_email='clement.acher@gmail.com',
-    url='https://github.com/_',
+    url='https://github.com/ClementAcher/WebsiteMonitoring',
     license=license,
+    install_requires=requirements,
     packages=find_packages(exclude=('tests', 'docs'))
 )
 
