@@ -64,6 +64,38 @@ class WebsitesContainer(object):
             grid_info.append(website.get_info_for_grid())
         return grid_info
 
+
+class GridUpdater(object):
+    def __init__(self, interval, wgWebsiteGrid, main_form):
+        self._timer = None
+        self.interval = interval
+        self.wgWebsiteGrid = wgWebsiteGrid
+        self.main_form = main_form
+        self.is_running = False
+        # Keep track for updates on a different timescale
+        self.counter = 0
+        self.start()
+
+    def updater(self):
+        self.wgWebsiteGrid.values = self.main_form.parentApp.websitesContainer.list_all_websites()
+        if self.main_form.parentApp.getHistory()[-1] == 'MAIN':
+            self.wgWebsiteGrid.display()
+
+    def _run(self):
+        self.is_running = False
+        self.start()
+        self.updater()
+
+    def start(self):
+        if not self.is_running:
+            self._timer = Timer(self.interval, self._run)
+            self._timer.start()
+            self.is_running = True
+
+    def stop(self):
+        self._timer.cancel()
+        self.is_running = False
+
 # def main():
 #     from time import sleep
 #

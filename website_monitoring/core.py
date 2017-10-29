@@ -37,6 +37,10 @@ class AlertBoxWidget(npyscreen.TitlePager):
         self.values = [["""{} Website website is down. availability=availablility, time=time""".format(i)] for i
                        in range(100)]
 
+    def add_line(self, line):
+        """ Add line - line is a list containing the string"""
+        self.values = line + self.values
+
 
 # FORMS
 
@@ -124,6 +128,8 @@ class MainForm(npyscreen.FormWithMenus):
         self.main_menu.addItem('Add new website', self.get_form_add_website, shortcut='a')
         self.main_menu.addItem('Import list of website', self.get_form_import_list_website, shortcut='i')
 
+        self.grid_updater = monitoring.GridUpdater(10, self.wgWebsiteGrid, self)
+
     def get_form_add_website(self):
         self.parentApp.getForm('ADD_WEBSITE').value = None
         self.parentApp.switchForm('ADD_WEBSITE')
@@ -138,6 +144,10 @@ class MainForm(npyscreen.FormWithMenus):
     def update_grid(self):
         self.wgWebsiteGrid.values = self.parentApp.websitesContainer.list_all_websites()
         self.wgWebsiteGrid.display()
+
+        # TODO REMOVE - DEBUGGING PURPOSE
+        self.wgAlertBox.add_line([str(self.parentApp.getHistory())])
+        self.wgAlertBox.display()
 
     def on_ok(self):
         self.parentApp.switchForm(None)
