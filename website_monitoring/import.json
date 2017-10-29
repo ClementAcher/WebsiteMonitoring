@@ -22,7 +22,7 @@
 		{
 			"name": "My Github",
 			"url": "https://github.com/ClementAcher/WebsiteMonitoring",
-			"interval": 2
+			"interval": 7
 		},
 		{
 			"name": "Npyscreen doc",
@@ -32,7 +32,7 @@
 		{
 			"name": "Lovetoride",
 			"url": "https://www.lovetoride.net/",
-			"interval": 3
+			"interval": 4
 		}
 	]
 }

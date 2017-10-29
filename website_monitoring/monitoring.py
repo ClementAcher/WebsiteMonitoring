@@ -15,11 +15,16 @@ class WebsiteHandler(object):
         self.url = url
         self.interval = int(interval)
         self.is_running = False
-        # TODO Maybe not starting directly
         self.start()
 
         # TODO See if it is possible to force de type for the columns
         self.df_history = pd.DataFrame()
+
+        self.convert = {"* All": None,
+                        "* 1 minute": datetime.timedelta(minutes=1),
+                        "* 10 minutes": datetime.timedelta(minutes=10),
+                        "* 1 hour": datetime.timedelta(hours=1),
+                        "* 24 hours": datetime.timedelta(days=1)}
 
     def _run(self):
         self.is_running = False
@@ -41,7 +46,6 @@ class WebsiteHandler(object):
         now = datetime.datetime.now()
         try:
             response = requests.head(self.url, timeout=self.__class__.timeout)
-        # TODO ReadTimeout instead
         except requests.ReadTimeout:
             self.df_history = self.df_history.append({'date': now,
                                                       'status code': 'Timeout',
@@ -49,7 +53,7 @@ class WebsiteHandler(object):
                                                       'OK': False}, ignore_index=True)
         else:
             self.df_history = self.df_history.append({'date': now,
-                                                      'status code': int(response.status_code),
+                                                      'status code': str(response.status_code),
                                                       'elapsed': response.elapsed,
                                                       'OK': True}, ignore_index=True)
             # return response.elapsed, response.status_code
@@ -65,6 +69,7 @@ class WebsiteHandler(object):
         else:
             # TODO clean that, a little bit messy
             tail = self.df_history.tail(n=1).values
+            # TODO Have the last status displayed as int (try str?)
             info += [tail[0, 1].strftime('%H:%M:%S.%f')[:-3],  # Last check
                      tail[0, 3],  # Last status
                      tail[0, 2].microseconds / 1000]  # Last Resp. Time
@@ -75,6 +80,7 @@ class WebsiteHandler(object):
 
             # TODO Exceptions if empty
 
+            # TODO NEXT THING TO DO : format another way, seconds aren't displayed
             info += [str(self.df_history.loc[mask_2min]['elapsed'].max().microseconds / 1000),
                      str(self.df_history.loc[mask_2min]['elapsed'].mean().microseconds / 1000),
                      str(self.df_history.loc[mask_1hour]['elapsed'].max().microseconds / 1000),
@@ -82,8 +88,19 @@ class WebsiteHandler(object):
 
         return info
 
-    def get_detailed_stats(self):
-        return [self.name, self.url, self.interval, str(self.last_elapsed), str(self.last_time_checked)]
+    def get_detailed_stats(self, str_time_scale):
+        general_info = [['Website', self.name], ['URL', self.url], ['Interval', self.interval]]
+
+        converted = self.convert[str_time_scale]
+        if converted is None:
+            status = self.df_history.groupby(by=['status code']).size().index.tolist()
+            counts = self.df_history.groupby(by=['status code']).size().tolist()
+        else:
+            mask = self.df_history['date'] > (datetime.datetime.now() - converted)
+            status = self.df_history.loc[mask].groupby(by=['status code']).size().index.tolist()
+            counts = self.df_history.loc[mask].groupby(by=['status code']).size().tolist()
+        status_info = [[stat, count] for stat, count in zip(status, counts)]
+        return general_info, status_info
 
 
 class WebsitesContainer(object):
@@ -93,8 +110,8 @@ class WebsitesContainer(object):
     def add(self, website):
         self.website_handlers.append(WebsiteHandler(*website))
 
-    def get_detailed_stats(self, index):
-        return self.website_handlers[index].get_detailed_stats()
+    def get_detailed_stats(self, index, str_time_scale):
+        return self.website_handlers[index].get_detailed_stats(str_time_scale)
 
     def list_all_websites(self):
         grid_info = []

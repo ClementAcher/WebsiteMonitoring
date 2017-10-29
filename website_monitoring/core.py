@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import npyscreen
+import curses
 import monitoring
 import json
 
@@ -18,7 +19,7 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
                            'MAX (10 min)', 'AVG (10 min)', 'MAX (1 hour)', 'AVG (1 hour)']
         self.values = self.fill_grid()
         self.select_whole_line = True
-        self.handlers["^O"] = self.action_selected
+        self.add_handlers({"^O": self.action_selected})
 
     def action_selected(self, inpt):
         self.parent.parentApp.getForm('WEBSITE_INFO').value = self.edit_cell[0]
@@ -42,6 +43,15 @@ class AlertBoxWidget(npyscreen.TitlePager):
     def add_line(self, line):
         """ Add line - line is a list containing the string"""
         self.values = line + self.values
+
+
+class PickTimeScaleWidget(npyscreen.MultiLine):
+    def __init__(self, *args, **keywords):
+        super(PickTimeScaleWidget, self).__init__(*args, **keywords)
+        self.add_handlers({curses.ascii.NL: self.actionHighlighted})
+
+    def actionHighlighted(self, inpt):
+        self.parent.display_info(self.values[self.cursor_line])
 
 
 # FORMS
@@ -108,14 +118,28 @@ class ImportWebsiteForm(npyscreen.ActionFormV2):
 
 
 class WebsiteInfoForm(npyscreen.Form):
+    # TODO Finish this : clean grid when opened
+    # TODO Several grids for different stats
     def create(self):
         self.value = None
-        self.wgPager = self.add(npyscreen.TitlePager)
+        self.wgTitle = self.add(npyscreen.FixedText, value='TEST')
+        self.wgTitle.color = 'DANGER'
+        self.wgPickTime = self.add(PickTimeScaleWidget, value=[1, ], max_height=8,
+                                   values=["* All", "* 1 minute", "* 10 minutes", "* 1 hour", "* 24 hours"],
+                                   rely=4, relx=10)
+        self.wgPager = self.add(npyscreen.SimpleGrid, name="test", rely=15, default_column_number = 2)
+
+
+    def display_info(self, timescale):
+        general_info, status_info = self.parentApp.websitesContainer.get_detailed_stats(self.value, timescale)
+        self.wgPager.values = general_info + status_info
+        self.wgPager.display()
 
     def beforeEditing(self):
-        self.wgPager.name = "Website " + str(self.value)
+        self.name = "Website " + str(self.value)
+        # self.wgPager.name = "Website " + str(self.value)
         # TODO Totally broken
-        self.wgPager.values = self.parentApp.websitesContainer.get_detailed_stats(self.value)
+        # self.wgPager.values = self.parentApp.websitesContainer.get_detailed_stats(self.value)
 
     def afterEditing(self):
         self.parentApp.switchForm('MAIN')
@@ -123,6 +147,7 @@ class WebsiteInfoForm(npyscreen.Form):
 
 class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
     GRID_UPDATE_FREQ = 10
+
     # TODO Change the label of the OK button for something like EXIT if possible
     # TODO Add a widget on top to tell when was opened the app?
 
