@@ -10,7 +10,6 @@ import json
 class WebsiteGridWidget(npyscreen.GridColTitles):
     # TODO Annoying thing: to exit the grid you need to press tab. Overwrite h_... to leave the grid when at the end
     # TODO Bug: when right arrow on the empty grid, exception raised. Better init or overwrite the method linked to the right arrow
-    # TODO Check what happens if too many websites for the grid
     def __init__(self, *args, **keywords):
         super(WebsiteGridWidget, self).__init__(*args, **keywords)
         # TODO Implement the final grid
@@ -35,6 +34,7 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
 
 
 class AlertBoxWidget(npyscreen.TitlePager):
+    # TODO Bug: Can't go back to the grid once the titlepager has been selected
     def __init__(self, *args, **keywords):
         super(AlertBoxWidget, self).__init__(*args, **keywords)
         self.values = [["""{} Website website is down. availability=availablility, time=time""".format(i)] for i
@@ -72,7 +72,7 @@ class AddWebsiteForm(npyscreen.ActionFormV2):
 
     def on_ok(self):
         # TODO If confirmed, ask if the user want to check the settings
-        # TODO Check if the values seem to be correct (check if thats an int...), check if no empty values
+        # TODO Check if the values seem to be correct (check if int...), check if no empty values
         first_ping = npyscreen.notify_yes_no('Do you want to first ping the website?', 'Check', editw=1)
         if first_ping:
             npyscreen.notify_wait('Checking...')
@@ -122,24 +122,51 @@ class WebsiteInfoForm(npyscreen.Form):
     # TODO Several grids for different stats
     def create(self):
         self.value = None
-        self.wgTitle = self.add(npyscreen.FixedText, value='TEST')
-        self.wgTitle.color = 'DANGER'
-        self.wgPickTime = self.add(PickTimeScaleWidget, value=[1, ], max_height=8,
+        self.add(npyscreen.FixedText, value='Pick a time frame', color='WARNING')
+        # self.wgTitle.color = 'DANGER'
+        self.wgPickTime = self.add(PickTimeScaleWidget, value=[1, ], max_height=6,
                                    values=["* All", "* 1 minute", "* 10 minutes", "* 1 hour", "* 24 hours"],
                                    rely=4, relx=10)
-        self.wgPager = self.add(npyscreen.SimpleGrid, name="test", rely=15, default_column_number = 2)
 
+        self.add(npyscreen.FixedText, value='Global info', rely=11, color='DANGER')
+
+        self.wgFixedInfoGrid = self.add(npyscreen.SimpleGrid, relx=3, rely=13, default_column_number=2, max_height=4)
+
+        self.wgSubtitle = self.add(npyscreen.FixedText, rely=19, color='DANGER')
+
+        self.add(npyscreen.FixedText, value='* Availability', relx=4, rely=21, color='WARNING')
+        self.wgAvailability = self.add(npyscreen.FixedText, relx=12, rely=23)
+
+        self.add(npyscreen.FixedText, value='* Response time', relx=4, rely=25, color='WARNING')
+        self.wgResponseGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=27, default_column_number=2, max_height=3)
+
+        self.add(npyscreen.FixedText, value='* Status count', relx=4, rely=31, color='WARNING')
+        self.wgStatusGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=33, default_column_number=2, max_height=7)
 
     def display_info(self, timescale):
-        general_info, status_info = self.parentApp.websitesContainer.get_detailed_stats(self.value, timescale)
-        self.wgPager.values = general_info + status_info
-        self.wgPager.display()
+        availability, status_info, response_info = self.parentApp.websitesContainer.get_detailed_stats_dynamic(
+            self.value, timescale)
+
+        self.wgSubtitle.value = 'Info with time frame: ' + timescale[2:]
+        self.wgStatusGrid.values = status_info
+        self.wgAvailability.value = '{} %'.format(availability * 100)
+        self.wgResponseGrid.values = response_info
+
+        self.wgStatusGrid.display()
+        self.wgSubtitle.display()
+        self.wgAvailability.display()
+        self.wgResponseGrid.display()
 
     def beforeEditing(self):
-        self.name = "Website " + str(self.value)
-        # self.wgPager.name = "Website " + str(self.value)
-        # TODO Totally broken
-        # self.wgPager.values = self.parentApp.websitesContainer.get_detailed_stats(self.value)
+        self.clear()
+        self.name = "Website " + self.parentApp.websitesContainer.get(self.value).name
+        self.wgSubtitle.value = 'Info with time frame: Nothing selected'
+        self.wgFixedInfoGrid.values = self.parentApp.websitesContainer.get_detailed_stats_fixed(self.value)
+
+    def clear(self):
+        self.wgStatusGrid.values = []
+        self.wgResponseGrid.values = []
+        self.wgAvailability.value = ''
 
     def afterEditing(self):
         self.parentApp.switchForm('MAIN')

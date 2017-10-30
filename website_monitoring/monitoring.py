@@ -43,10 +43,12 @@ class WebsiteHandler(object):
 
     def ping_website(self):
         # TODO Handle all exceptions possible : status code, no connexion, website does not exist... See requests doc
+        # TODO ConnectTimeoutError
+        # TODO Take a look at exception from the request library, can cover pretty much every thing. Add check for valid url
         now = datetime.datetime.now()
         try:
             response = requests.head(self.url, timeout=self.__class__.timeout)
-        except requests.ReadTimeout:
+        except requests.Timeout:
             self.df_history = self.df_history.append({'date': now,
                                                       'status code': 'Timeout',
                                                       'elapsed': datetime.timedelta(0),
@@ -81,6 +83,7 @@ class WebsiteHandler(object):
             # TODO Exceptions if empty
 
             # TODO NEXT THING TO DO : format another way, seconds aren't displayed
+            # TODO : Error raised here "Unalignable boolean Series provided as indexer. I think case when len(mask) != len(df). Add lock, or check, or 1 line op?
             info += [str(self.df_history.loc[mask_2min]['elapsed'].max().microseconds / 1000),
                      str(self.df_history.loc[mask_2min]['elapsed'].mean().microseconds / 1000),
                      str(self.df_history.loc[mask_1hour]['elapsed'].max().microseconds / 1000),
@@ -88,30 +91,48 @@ class WebsiteHandler(object):
 
         return info
 
-    def get_detailed_stats(self, str_time_scale):
-        general_info = [['Website', self.name], ['URL', self.url], ['Interval', self.interval]]
+    def get_detailed_stats_fixed(self):
+        return [['Website', self.name], ['URL', self.url], ['Interval', self.interval]]
 
+    def get_detailed_stats_dynamic(self, str_time_scale):
+        # TODO add lock?
         converted = self.convert[str_time_scale]
         if converted is None:
             status = self.df_history.groupby(by=['status code']).size().index.tolist()
             counts = self.df_history.groupby(by=['status code']).size().tolist()
+            availability = self.df_history['OK'].mean()
+            mini = self.df_history.loc[self.df_history['OK'] == 1]['elapsed'].min()
+            avg = self.df_history.loc[self.df_history['OK'] == 1]['elapsed'].mean()
+            maxi = self.df_history.loc[self.df_history['OK'] == 1]['elapsed'].max()
         else:
             mask = self.df_history['date'] > (datetime.datetime.now() - converted)
             status = self.df_history.loc[mask].groupby(by=['status code']).size().index.tolist()
             counts = self.df_history.loc[mask].groupby(by=['status code']).size().tolist()
+            availability = self.df_history[mask]['OK'].mean()
+            mini = self.df_history.loc[mask & self.df_history['OK'] == 1]['elapsed'].min()
+            avg = self.df_history.loc[mask & self.df_history['OK'] == 1]['elapsed'].mean()
+            maxi = self.df_history.loc[mask & self.df_history['OK'] == 1]['elapsed'].max()
+        elapsed_info = [[text, '{}.{} sec'.format(time.seconds, time.microseconds)] for text, time in
+                        zip(['Min', 'Average', 'Max'], [mini, avg, maxi])]
         status_info = [[stat, count] for stat, count in zip(status, counts)]
-        return general_info, status_info
+        return availability, status_info, elapsed_info
 
 
 class WebsitesContainer(object):
     def __init__(self):
         self.website_handlers = []
 
+    def get(self, index):
+        return self.website_handlers[index]
+
     def add(self, website):
         self.website_handlers.append(WebsiteHandler(*website))
 
-    def get_detailed_stats(self, index, str_time_scale):
-        return self.website_handlers[index].get_detailed_stats(str_time_scale)
+    def get_detailed_stats_fixed(self, index):
+        return self.website_handlers[index].get_detailed_stats_fixed()
+
+    def get_detailed_stats_dynamic(self, index, str_time_scale):
+        return self.website_handlers[index].get_detailed_stats_dynamic(str_time_scale)
 
     def list_all_websites(self):
         grid_info = []
