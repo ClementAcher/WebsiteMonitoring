@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import npyscreen
 import curses
+import requests
 import monitoring
 import json
-
+import exceptions as err
 
 # WIDGETS
 
@@ -18,7 +19,7 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
                            'MAX (10 min)', 'AVG (10 min)', 'MAX (1 hour)', 'AVG (1 hour)']
         self.values = self.fill_grid()
         self.select_whole_line = True
-        self.add_handlers({"^O": self.action_selected})
+        self.add_handlers({curses.ascii.NL: self.action_selected})
 
     def action_selected(self, inpt):
         self.parent.parentApp.getForm('WEBSITE_INFO').value = self.edit_cell[0]
@@ -61,25 +62,58 @@ class AddWebsiteForm(npyscreen.ActionFormV2):
     def create(self):
         self.name = "New Website"
         entry_pos = 25
-        self.wgName = self.add(npyscreen.TitleText, name="Entry name:", begin_entry_at=entry_pos)
+        self.wgName = self.add(npyscreen.TitleText, name="Entry name:", value="", begin_entry_at=entry_pos)
         self.wgAddress = self.add(npyscreen.TitleText, name="Website address:", begin_entry_at=entry_pos)
-        self.wgInterval = self.add(npyscreen.TitleText, name="Check intervals:", begin_entry_at=entry_pos)
+        self.wgInterval = self.add(npyscreen.TitleText, name="Check interval:", begin_entry_at=entry_pos)
 
     def beforeEditing(self):
-        self.wgName.value = ''
-        self.wgAddress.value = ''
-        self.wgInterval.value = ''
+        if self.value is None:
+            self.wgName.value = ''
+            self.wgAddress.value = ''
+            self.wgInterval.value = ''
 
     def on_ok(self):
         # TODO If confirmed, ask if the user want to check the settings
         # TODO Check if the values seem to be correct (check if int...), check if no empty values
-        first_ping = npyscreen.notify_yes_no('Do you want to first ping the website?', 'Check', editw=1)
-        if first_ping:
-            npyscreen.notify_wait('Checking...')
+        self.value = True
+        try:
+            self.checkSettings()
+        except err.WhileCheckingException as e:
+            npyscreen.notify_confirm(e.__doc__, editw=1)
+
         else:
-            self.parentApp.websitesContainer.add([self.wgName.value, self.wgAddress.value, self.wgInterval.value])
-            npyscreen.notify_confirm('Change saved!', editw=1)
-        self.parentApp.switchForm('MAIN')
+            ping_message = """Do you want to first ping the website?
+            This will check if the URL given is correct."""
+            first_ping = npyscreen.notify_yes_no(ping_message, 'Initial ping', editw=1)
+            if first_ping:
+                # TODO I dont like doing that here, i need to import requests here just for that. Do it in monitoring
+                try:
+                    response = requests.head(self.wgAddress.value, timeout=3)
+                except requests.Timeout:
+                    add_anyway = npyscreen.notify_yes_no("Request timed out. Add the website anyway?", 'Timeout', editw=1)
+                    # TODO it won't work like that, change this
+                    if not add_anyway:
+                        return None
+                except requests.RequestException as e:
+                    npyscreen.notify_confirm(e.__doc__, editw=1)
+                    return None
+                else:
+                    npyscreen.notify_wait('Status code: {} \n Response time: {}'.format(response.elapsed, response.status_code))
+                    self.parentApp.websitesContainer.add([self.wgName.value, self.wgAddress.value, self.wgInterval.value])
+                    npyscreen.notify_confirm('Change saved!', editw=1)
+                    self.parentApp.switchForm('MAIN')
+
+    def checkSettings(self):
+        if not self.wgName.value:
+            raise err.EmptyNameException
+        if not self.wgAddress.value:
+            raise err.EmptyURLException
+        if not self.wgInterval.value:
+            raise err.EmptyIntervalException
+        try:
+            int(self.wgInterval.value)
+        except ValueError:
+            raise err.BadIntervalException
 
     def on_cancel(self):
         exiting = npyscreen.notify_yes_no('Are you sure you want to exit without saving?', editw=1)
@@ -87,7 +121,7 @@ class AddWebsiteForm(npyscreen.ActionFormV2):
             npyscreen.notify('Your changes were NOT saved')
             self.parentApp.switchForm('MAIN')
         else:
-            pass
+            self.value = True
 
 
 class ImportWebsiteForm(npyscreen.ActionFormV2):
@@ -123,7 +157,6 @@ class WebsiteInfoForm(npyscreen.Form):
     def create(self):
         self.value = None
         self.add(npyscreen.FixedText, value='Pick a time frame', color='WARNING')
-        # self.wgTitle.color = 'DANGER'
         self.wgPickTime = self.add(PickTimeScaleWidget, value=[1, ], max_height=6,
                                    values=["* All", "* 1 minute", "* 10 minutes", "* 1 hour", "* 24 hours"],
                                    rely=4, relx=10)

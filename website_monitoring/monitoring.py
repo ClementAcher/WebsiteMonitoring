@@ -58,7 +58,6 @@ class WebsiteHandler(object):
                                                       'status code': str(response.status_code),
                                                       'elapsed': response.elapsed,
                                                       'OK': True}, ignore_index=True)
-            # return response.elapsed, response.status_code
 
     def get_info_for_grid(self):
 
@@ -178,19 +177,8 @@ class GridUpdater(object):
         self._timer.cancel()
         self.is_running = False
 
-# def main():
-#     from time import sleep
-#
-#     w1 = WebsiteHandler('Google', 'https://www.google.fr', 2)
-#     w2 = WebsiteHandler('StackOverFlow', 'https://stackoverflow.com/', 5)
-#
-#     print("starting...")
-#     try:
-#         sleep(50)
-#     finally:
-#         w1.stop()
-#         w2.stop()
 
+def ping_website_check(url):
+    response = requests.head(url, timeout=3)
+    return response.elapsed, response.status_code
 
-# if __name__ == '__main__':
-#     main()
