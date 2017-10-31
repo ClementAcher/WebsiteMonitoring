@@ -6,6 +6,7 @@ import monitoring
 import json
 import exceptions as err
 
+
 # WIDGETS
 
 class WebsiteGridWidget(npyscreen.GridColTitles):
@@ -22,8 +23,11 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
         self.add_handlers({curses.ascii.NL: self.action_selected})
 
     def action_selected(self, inpt):
-        self.parent.parentApp.getForm('WEBSITE_INFO').value = self.edit_cell[0]
-        self.parent.parentApp.switchForm('WEBSITE_INFO')
+        if self.parent.parentApp.websitesContainer.get(self.edit_cell[0]).has_no_data():
+            npyscreen.notify_wait('No data yet, wait a few seconds for the first ping.', 'No data yet')
+        else:
+            self.parent.parentApp.getForm('WEBSITE_INFO').value = self.edit_cell[0]
+            self.parent.parentApp.switchForm('WEBSITE_INFO')
 
     def custom_print_cell(self, actual_cell, cell_display_value):
         # TODO custom_print_cell
@@ -90,7 +94,8 @@ class AddWebsiteForm(npyscreen.ActionFormV2):
                 try:
                     response = requests.head(self.wgAddress.value, timeout=3)
                 except requests.Timeout:
-                    add_anyway = npyscreen.notify_yes_no("Request timed out. Add the website anyway?", 'Timeout', editw=1)
+                    add_anyway = npyscreen.notify_yes_no("Request timed out. Add the website anyway?", 'Timeout',
+                                                         editw=1)
                     # TODO it won't work like that, change this
                     if not add_anyway:
                         return None
@@ -98,8 +103,10 @@ class AddWebsiteForm(npyscreen.ActionFormV2):
                     npyscreen.notify_confirm(e.__doc__, editw=1)
                     return None
                 else:
-                    npyscreen.notify_wait('Status code: {} \n Response time: {}'.format(response.elapsed, response.status_code))
-                    self.parentApp.websitesContainer.add([self.wgName.value, self.wgAddress.value, self.wgInterval.value])
+                    npyscreen.notify_wait(
+                        'Status code: {} \n Response time: {}'.format(response.elapsed, response.status_code))
+                    self.parentApp.websitesContainer.add(
+                        [self.wgName.value, self.wgAddress.value, self.wgInterval.value])
                     npyscreen.notify_confirm('Change saved!', editw=1)
                     self.parentApp.switchForm('MAIN')
 
@@ -161,34 +168,40 @@ class WebsiteInfoForm(npyscreen.Form):
                                    values=["* All", "* 1 minute", "* 10 minutes", "* 1 hour", "* 24 hours"],
                                    rely=4, relx=10)
 
-        self.add(npyscreen.FixedText, value='Global info', rely=11, color='DANGER')
+        self.add(npyscreen.FixedText, value='Global info', rely=10, color='DANGER')
 
-        self.wgFixedInfoGrid = self.add(npyscreen.SimpleGrid, relx=3, rely=13, default_column_number=2, max_height=4)
+        self.wgFixedInfoGrid = self.add(npyscreen.SimpleGrid, relx=3, rely=12, default_column_number=2, max_height=3)
 
-        self.wgSubtitle = self.add(npyscreen.FixedText, rely=19, color='DANGER')
+        self.wgSubtitle = self.add(npyscreen.FixedText, rely=16, color='DANGER')
 
-        self.add(npyscreen.FixedText, value='* Availability', relx=4, rely=21, color='WARNING')
-        self.wgAvailability = self.add(npyscreen.FixedText, relx=12, rely=23)
+        self.add(npyscreen.FixedText, value='* Availability', relx=4, rely=18, color='WARNING')
+        self.wgAvailability = self.add(npyscreen.FixedText, relx=12, rely=20)
 
-        self.add(npyscreen.FixedText, value='* Response time', relx=4, rely=25, color='WARNING')
-        self.wgResponseGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=27, default_column_number=2, max_height=3)
+        self.add(npyscreen.FixedText, value='* Response time', relx=4, rely=22, color='WARNING')
+        self.wgResponseGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=24, default_column_number=2, max_height=3)
 
-        self.add(npyscreen.FixedText, value='* Status count', relx=4, rely=31, color='WARNING')
-        self.wgStatusGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=33, default_column_number=2, max_height=7)
+        self.add(npyscreen.FixedText, value='* Status count', relx=4, rely=28, color='WARNING')
+        self.wgStatusGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=30, default_column_number=2, max_height=4)
+
+        self.add(npyscreen.FixedText, value='* Last header', relx=4, rely=35, color='WARNING')
+        self.wgHeaderGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=37, default_column_number=2, max_height=10)
 
     def display_info(self, timescale):
-        availability, status_info, response_info = self.parentApp.websitesContainer.get_detailed_stats_dynamic(
+        availability, status_info, response_info, last_header = self.parentApp.websitesContainer.get_detailed_stats_dynamic(
             self.value, timescale)
 
         self.wgSubtitle.value = 'Info with time frame: ' + timescale[2:]
         self.wgStatusGrid.values = status_info
         self.wgAvailability.value = '{} %'.format(availability * 100)
         self.wgResponseGrid.values = response_info
+        self.wgHeaderGrid.values = last_header
+        # self.wgHeaderGrid.values = [[1,2], [3,4]]
 
         self.wgStatusGrid.display()
         self.wgSubtitle.display()
         self.wgAvailability.display()
         self.wgResponseGrid.display()
+        self.wgHeaderGrid.display()
 
     def beforeEditing(self):
         self.clear()
@@ -200,6 +213,7 @@ class WebsiteInfoForm(npyscreen.Form):
         self.wgStatusGrid.values = []
         self.wgResponseGrid.values = []
         self.wgAvailability.value = ''
+        self.wgHeaderGrid.values = []
 
     def afterEditing(self):
         self.parentApp.switchForm('MAIN')
