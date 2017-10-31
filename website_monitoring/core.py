@@ -15,10 +15,10 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
     def __init__(self, *args, **keywords):
         super(WebsiteGridWidget, self).__init__(*args, **keywords)
         # TODO Implement the final grid
-        self.default_column_number = 9
+        self.default_column_number = 10
         self.col_titles = ['Website', 'Interval Check', 'Last Check', 'Last Status', 'Last Resp. Time',
-                           'MAX (10 min)', 'AVG (10 min)', 'MAX (1 hour)', 'AVG (1 hour)']
-        self.values = self.fill_grid()
+                           'MAX (10 min)', 'AVG (10 min)', 'MAX (1 hour)', 'AVG (1 hour)', 'Avai. (2 min)']
+        # self.values = self.fill_grid()
         self.select_whole_line = True
         self.add_handlers({curses.ascii.NL: self.action_selected})
 
@@ -31,7 +31,15 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
 
     def custom_print_cell(self, actual_cell, cell_display_value):
         # TODO custom_print_cell
-        pass
+        if len(cell_display_value) > 0 and cell_display_value[-1] == '%':
+            availability = int(cell_display_value[:-5])
+            if availability <= 80 :
+                actual_cell.color = 'DANGER'
+            elif availability <= 90:
+                actual_cell.color = 'CAUTION'
+            else:
+                actual_cell.color = 'GOOD'
+
 
     def fill_grid(self):
         values = self.parent.parentApp.websitesContainer.list_all_websites()
@@ -42,12 +50,13 @@ class AlertBoxWidget(npyscreen.TitlePager):
     # TODO Bug: Can't go back to the grid once the titlepager has been selected
     def __init__(self, *args, **keywords):
         super(AlertBoxWidget, self).__init__(*args, **keywords)
-        self.values = [["""{} Website website is down. availability=availablility, time=time""".format(i)] for i
-                       in range(100)]
+        self.parent.parentApp.websitesContainer.set_alert_box(self)
 
     def add_line(self, line):
         """ Add line - line is a list containing the string"""
         self.values = line + self.values
+        if self.parent.parentApp.getHistory()[-1] == 'MAIN':
+            self.display()
 
 
 class PickTimeScaleWidget(npyscreen.MultiLine):
@@ -159,8 +168,7 @@ class ImportWebsiteForm(npyscreen.ActionFormV2):
 
 
 class WebsiteInfoForm(npyscreen.Form):
-    # TODO Finish this : clean grid when opened
-    # TODO Several grids for different stats
+    # TODO Make the last header optional? Might have issues with smaller terminals
     def create(self):
         self.value = None
         self.add(npyscreen.FixedText, value='Pick a time frame', color='WARNING')
@@ -192,7 +200,7 @@ class WebsiteInfoForm(npyscreen.Form):
 
         self.wgSubtitle.value = 'Info with time frame: ' + timescale[2:]
         self.wgStatusGrid.values = status_info
-        self.wgAvailability.value = '{} %'.format(availability * 100)
+        self.wgAvailability.value = '{:.2f} %'.format(availability * 100)
         self.wgResponseGrid.values = response_info
         self.wgHeaderGrid.values = last_header
         # self.wgHeaderGrid.values = [[1,2], [3,4]]
@@ -228,7 +236,7 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
     def create(self):
         self.wgWebsiteGrid = self.add(WebsiteGridWidget, name='Monitoring', max_height=25)
         # TODO Don't hard code rely, otherwise app can't open if terminal not big enough.
-        self.wgAlertBox = self.add(AlertBoxWidget, name='Alerts', rely=30)
+        self.wgAlertBox = self.add(AlertBoxWidget, name='Alerts', rely=-10)
 
         self.main_menu = self.new_menu(name='Main menu')
 
@@ -248,10 +256,6 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
     def beforeEditing(self):
         self.wgWebsiteGrid.values = self.parentApp.websitesContainer.list_all_websites()
         self.wgWebsiteGrid.display()
-
-        # TODO REMOVE - DEBUGGING PURPOSE
-        self.wgAlertBox.add_line([str(self.parentApp.getHistory())])
-        self.wgAlertBox.display()
 
     def on_ok(self):
         # This button will stop the app.
