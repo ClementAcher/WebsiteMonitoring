@@ -6,7 +6,7 @@ import pandas as pd
 
 class WebsiteHandler(object):
     # TODO Better define this
-    timeout = 1
+    timeout = 0.3
 
     def __init__(self, name, url, interval, parent):
         self._timer = None
@@ -121,6 +121,9 @@ class WebsiteHandler(object):
         return [['Website', self.name], ['URL', self.url], ['Interval', self.interval]]
 
     def get_detailed_stats_dynamic(self, str_time_scale):
+        # TODO Not empty, but only timeout
+        # last_header = [[key, value] for key, value in self.last_header.items()] AttributeError: 'NoneType'
+        # object has not attribute 'items'
         converted = self.convert[str_time_scale]
         assert not self.has_no_data()
         with self.lock:
@@ -143,7 +146,6 @@ class WebsiteHandler(object):
                             zip(['Min', 'Average', 'Max'], [mini, avg, maxi])]
             status_info = [[stat, count] for stat, count in zip(status, counts)]
 
-            # TODO Check when no data for the header
             last_header = [[key, value] for key, value in self.last_header.items()]
 
         return availability, status_info, elapsed_info, last_header

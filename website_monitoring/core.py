@@ -14,7 +14,6 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
     # TODO Bug: when right arrow on the empty grid, exception raised. Better init or overwrite the method linked to the right arrow
     def __init__(self, *args, **keywords):
         super(WebsiteGridWidget, self).__init__(*args, **keywords)
-        # TODO Implement the final grid
         self.default_column_number = 10
         self.col_titles = ['Website', 'Interval Check', 'Last Check', 'Last Status', 'Last Resp. Time',
                            'MAX (10 min)', 'AVG (10 min)', 'MAX (1 hour)', 'AVG (1 hour)', 'Avai. (2 min)']
@@ -72,6 +71,7 @@ class PickTimeScaleWidget(npyscreen.MultiLine):
 
 class AddWebsiteForm(npyscreen.ActionFormV2):
     # TODO Improve the look (smaller, add line between wg)
+    # TODO add the new websites to the grid after adding
     def create(self):
         self.name = "New Website"
         entry_pos = 25
@@ -228,10 +228,11 @@ class WebsiteInfoForm(npyscreen.Form):
 
 
 class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
-    GRID_UPDATE_FREQ = 10
+    GRID_UPDATE_FREQ = 5
 
     # TODO Change the label of the OK button for something like EXIT if possible
     # TODO Add a widget on top to tell when was opened the app?
+    # TODO Dynamic partitioning between the grid and the alert box
 
     def create(self):
         self.wgWebsiteGrid = self.add(WebsiteGridWidget, name='Monitoring', max_height=25)
@@ -254,8 +255,9 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
         self.parentApp.switchForm('IMPORT_WEBSITE')
 
     def beforeEditing(self):
-        self.wgWebsiteGrid.values = self.parentApp.websitesContainer.list_all_websites()
-        self.wgWebsiteGrid.display()
+        pass
+        # self.wgWebsiteGrid.values = self.parentApp.websitesContainer.list_all_websites()
+        # self.wgWebsiteGrid.display()
 
     def on_ok(self):
         # This button will stop the app.
@@ -276,6 +278,7 @@ class WebsiteMonitoringApplication(npyscreen.NPSAppManaged):
         self.addForm('WEBSITE_INFO', WebsiteInfoForm)
         self.addForm('IMPORT_WEBSITE', ImportWebsiteForm)
 
+# TODO add timeout as arg
 
 if __name__ == '__main__':
     app = WebsiteMonitoringApplication()
