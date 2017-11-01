@@ -4,7 +4,12 @@ certifi==2017.7.27.1
 chardet==3.0.4
 idna==2.6
 npyscreen==4.10.5
+numpy==1.13.3
+pandas==0.21.0
 pyasn1==0.2.3
+python-dateutil==2.6.1
+pytz==2017.2
 requests==2.18.4
 rsa==3.4.2
+six==1.11.0
 urllib3==1.22
