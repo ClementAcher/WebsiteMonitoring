@@ -4,6 +4,8 @@ import datetime
 import pandas as pd
 
 
+# TODO Handle case of wifi disconected directly
+
 class WebsiteHandler(object):
     # TODO Better define this
     timeout = 0.3

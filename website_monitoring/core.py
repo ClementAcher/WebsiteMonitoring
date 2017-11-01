@@ -10,16 +10,15 @@ import exceptions as err
 # WIDGETS
 
 class WebsiteGridWidget(npyscreen.GridColTitles):
-    # TODO Annoying thing: to exit the grid you need to press tab. Overwrite h_... to leave the grid when at the end
-    # TODO Bug: when right arrow on the empty grid, exception raised. Better init or overwrite the method linked to the right arrow
     def __init__(self, *args, **keywords):
         super(WebsiteGridWidget, self).__init__(*args, **keywords)
         self.default_column_number = 10
         self.col_titles = ['Website', 'Interval Check', 'Last Check', 'Last Status', 'Last Resp. Time',
                            'MAX (10 min)', 'AVG (10 min)', 'MAX (1 hour)', 'AVG (1 hour)', 'Avai. (2 min)']
-        # self.values = self.fill_grid()
         self.select_whole_line = True
         self.add_handlers({curses.ascii.NL: self.action_selected})
+        self.handlers[curses.KEY_RIGHT] = self.h_move_cell_right_mod
+        self.handlers[curses.KEY_DOWN] = self.h_move_cell_down_mod
 
     def action_selected(self, inpt):
         if self.parent.parentApp.websitesContainer.get(self.edit_cell[0]).has_no_data():
@@ -28,17 +27,38 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
             self.parent.parentApp.getForm('WEBSITE_INFO').value = self.edit_cell[0]
             self.parent.parentApp.switchForm('WEBSITE_INFO')
 
-    def custom_print_cell(self, actual_cell, cell_display_value):
-        # TODO custom_print_cell
-        if len(cell_display_value) > 0 and cell_display_value[-1] == '%':
-            availability = int(cell_display_value[:-5])
-            if availability <= 80 :
-                actual_cell.color = 'DANGER'
-            elif availability <= 90:
-                actual_cell.color = 'CAUTION'
-            else:
-                actual_cell.color = 'GOOD'
+    def h_move_cell_right_mod(self, inpt):
+        try:
+            if self.values is not None:
+                self.h_move_cell_right(inpt)
+        except IndexError:
+            pass
 
+    def h_move_cell_down_mod(self, inpt):
+        try:
+            if self.values is not None:
+                self.h_move_cell_down(inpt)
+        except IndexError:
+            pass
+
+    def custom_print_cell(self, actual_cell, cell_display_value):
+        # TODO Got an exception here with ValueError: better do this
+        if cell_display_value == 'Timeout':
+            actual_cell.color = 'DANGER'
+        elif len(cell_display_value) > 0 and cell_display_value[-1] == '%':
+            try:
+                availability = int(cell_display_value[:-5])
+                if availability <= 80:
+                    actual_cell.color = 'DANGER'
+                elif availability <= 90:
+                    actual_cell.color = 'CAUTION'
+                else:
+                    actual_cell.color = 'GOOD'
+            except ValueError:
+                # This should not happen
+                pass
+        else:
+            actual_cell.color = 'WHITE'
 
     def fill_grid(self):
         values = self.parent.parentApp.websitesContainer.list_all_websites()
@@ -71,7 +91,6 @@ class PickTimeScaleWidget(npyscreen.MultiLine):
 
 class AddWebsiteForm(npyscreen.ActionFormV2):
     # TODO Improve the look (smaller, add line between wg)
-    # TODO add the new websites to the grid after adding
     def create(self):
         self.name = "New Website"
         entry_pos = 25
@@ -86,8 +105,6 @@ class AddWebsiteForm(npyscreen.ActionFormV2):
             self.wgInterval.value = ''
 
     def on_ok(self):
-        # TODO If confirmed, ask if the user want to check the settings
-        # TODO Check if the values seem to be correct (check if int...), check if no empty values
         self.value = True
         try:
             self.checkSettings()
@@ -95,29 +112,27 @@ class AddWebsiteForm(npyscreen.ActionFormV2):
             npyscreen.notify_confirm(e.__doc__, editw=1)
 
         else:
-            ping_message = """Do you want to first ping the website?
-            This will check if the URL given is correct."""
-            first_ping = npyscreen.notify_yes_no(ping_message, 'Initial ping', editw=1)
-            if first_ping:
-                # TODO I dont like doing that here, i need to import requests here just for that. Do it in monitoring
-                try:
-                    response = requests.head(self.wgAddress.value, timeout=3)
-                except requests.Timeout:
-                    add_anyway = npyscreen.notify_yes_no("Request timed out. Add the website anyway?", 'Timeout',
-                                                         editw=1)
-                    # TODO it won't work like that, change this
-                    if not add_anyway:
-                        return None
-                except requests.RequestException as e:
-                    npyscreen.notify_confirm(e.__doc__, editw=1)
+            ping_message = """\n\nThe script is going to perform a first ping to check if the URL is correct."""
+            npyscreen.notify_confirm(ping_message, 'Checking the URL', editw=1)
+            # TODO I dont like doing that here, i need to import requests here just for that. Do it in monitoring
+            try:
+                response = requests.head(self.wgAddress.value, timeout=3)
+            except requests.Timeout:
+                add_anyway = npyscreen.notify_yes_no("Request timed out. Add the website anyway?", 'Timeout',
+                                                     editw=1)
+                if not add_anyway:
                     return None
-                else:
-                    npyscreen.notify_wait(
-                        'Status code: {} \n Response time: {}'.format(response.elapsed, response.status_code))
-                    self.parentApp.websitesContainer.add(
-                        [self.wgName.value, self.wgAddress.value, self.wgInterval.value])
-                    npyscreen.notify_confirm('Change saved!', editw=1)
-                    self.parentApp.switchForm('MAIN')
+            except requests.RequestException as e:
+                npyscreen.notify_confirm(e.__doc__, editw=1)
+                return None
+            else:
+                npyscreen.notify_wait(
+                    '\n\nStatus code: {} \nResponse time: {}'.format(response.elapsed, response.status_code))
+            self.parentApp.websitesContainer.add([self.wgName.value, self.wgAddress.value, self.wgInterval.value])
+            npyscreen.notify_confirm('Changes saved!', editw=1)
+
+            self.parentApp.getForm('MAIN').update_grid_on_display = True
+            self.parentApp.switchForm('MAIN')
 
     def checkSettings(self):
         if not self.wgName.value:
@@ -142,11 +157,10 @@ class AddWebsiteForm(npyscreen.ActionFormV2):
 
 class ImportWebsiteForm(npyscreen.ActionFormV2):
     def create(self):
-        self.wgFilenameHolder = self.add(npyscreen.TitleFilenameCombo, name='Choose the file to import',
+        self.wgFilenameHolder = self.add(npyscreen.TitleFilenameCombo, name='Choose a JSON file to import',
                                          begin_entry_at=40)
 
     def import_websites(self):
-        # TODO add exceptions
         with open(self.wgFilenameHolder.value) as f:
             json_website = f.read()
         decoded = json.loads(json_website)
@@ -154,9 +168,14 @@ class ImportWebsiteForm(npyscreen.ActionFormV2):
             self.parentApp.websitesContainer.add(list(website.values()))
 
     def on_ok(self):
-        self.import_websites()
-        npyscreen.notify('Import done.', 'Import')
-        self.parentApp.switchForm('MAIN')
+        try:
+            self.import_websites()
+        except json.JSONDecodeError:
+            npyscreen.notify_confirm('Cannot decode the file. Are you sure this is a JSON file?', 'Import error', editw=1)
+        else:
+            npyscreen.notify('Import done.', 'Import')
+            self.parentApp.getForm('MAIN').update_grid_on_display = True
+            self.parentApp.switchForm('MAIN')
 
     def on_cancel(self):
         exiting = npyscreen.notify_yes_no('Are you sure you want to exit without importing?', editw=1)
@@ -168,31 +187,36 @@ class ImportWebsiteForm(npyscreen.ActionFormV2):
 
 
 class WebsiteInfoForm(npyscreen.Form):
-    # TODO Make the last header optional? Might have issues with smaller terminals
     def create(self):
         self.value = None
-        self.add(npyscreen.FixedText, value='Pick a time frame', color='WARNING')
+        self.add(npyscreen.FixedText, value='Pick a time frame', color='WARNING', editable=False)
         self.wgPickTime = self.add(PickTimeScaleWidget, value=[1, ], max_height=6,
                                    values=["* All", "* 1 minute", "* 10 minutes", "* 1 hour", "* 24 hours"],
-                                   rely=4, relx=10)
+                                   rely=4, relx=10, scroll_exit=True)
 
-        self.add(npyscreen.FixedText, value='Global info', rely=10, color='DANGER')
+        self.add(npyscreen.FixedText, value='Global info', rely=10, color='DANGER', editable=False)
 
-        self.wgFixedInfoGrid = self.add(npyscreen.SimpleGrid, relx=3, rely=12, default_column_number=2, max_height=3)
+        self.wgFixedInfoGrid = self.add(npyscreen.SimpleGrid, relx=3, rely=12, default_column_number=2, max_height=3,
+                                        editable=False)
 
-        self.wgSubtitle = self.add(npyscreen.FixedText, rely=16, color='DANGER')
+        # self.wgFixedInfoGrid.editable = False
 
-        self.add(npyscreen.FixedText, value='* Availability', relx=4, rely=18, color='WARNING')
-        self.wgAvailability = self.add(npyscreen.FixedText, relx=12, rely=20)
+        self.wgSubtitle = self.add(npyscreen.FixedText, rely=16, color='DANGER', editable=False)
 
-        self.add(npyscreen.FixedText, value='* Response time', relx=4, rely=22, color='WARNING')
-        self.wgResponseGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=24, default_column_number=2, max_height=3)
+        self.add(npyscreen.FixedText, value='* Availability', relx=4, rely=18, color='WARNING', editable=False)
+        self.wgAvailability = self.add(npyscreen.FixedText, relx=12, rely=20, editable=False)
 
-        self.add(npyscreen.FixedText, value='* Status count', relx=4, rely=28, color='WARNING')
-        self.wgStatusGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=30, default_column_number=2, max_height=4)
+        self.add(npyscreen.FixedText, value='* Response time', relx=4, rely=22, color='WARNING', editable=False)
+        self.wgResponseGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=24, default_column_number=2, max_height=3,
+                                       editable=False)
 
-        self.add(npyscreen.FixedText, value='* Last header', relx=4, rely=35, color='WARNING')
-        self.wgHeaderGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=37, default_column_number=2, max_height=10)
+        self.add(npyscreen.FixedText, value='* Status count', relx=4, rely=28, color='WARNING', editable=False)
+        self.wgStatusGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=30, default_column_number=2, max_height=4,
+                                     editable=False)
+
+        self.add(npyscreen.FixedText, value='* Last header', relx=4, rely=35, color='WARNING', editable=False)
+        self.wgHeaderGrid = self.add(npyscreen.SimpleGrid, relx=7, rely=37, default_column_number=2, max_height=10,
+                                     editable=False)
 
     def display_info(self, timescale):
         availability, status_info, response_info, last_header = self.parentApp.websitesContainer.get_detailed_stats_dynamic(
@@ -235,7 +259,9 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
     # TODO Dynamic partitioning between the grid and the alert box
 
     def create(self):
-        self.wgWebsiteGrid = self.add(WebsiteGridWidget, name='Monitoring', max_height=25)
+        # self.add(npyscreen.Textfield)
+        self.help = "Test"
+        self.wgWebsiteGrid = self.add(WebsiteGridWidget, name='Monitoring', max_height=25, rely=3)
         # TODO Don't hard code rely, otherwise app can't open if terminal not big enough.
         self.wgAlertBox = self.add(AlertBoxWidget, name='Alerts', rely=-10)
 
@@ -246,6 +272,17 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
 
         self.grid_updater = monitoring.GridUpdater(self.__class__.GRID_UPDATE_FREQ, self.wgWebsiteGrid, self)
 
+        self.update_grid_on_display = False
+
+        self.add_handlers({'t': self.h_selectGrid})
+
+    # TODO Not really good workaround...
+    def h_selectGrid(self, inpt):
+        try:
+            npyscreen.ActionFormMinimal.edit(self)
+        except AttributeError:
+            pass
+
     def get_form_add_website(self):
         self.parentApp.getForm('ADD_WEBSITE').value = None
         self.parentApp.switchForm('ADD_WEBSITE')
@@ -255,9 +292,9 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
         self.parentApp.switchForm('IMPORT_WEBSITE')
 
     def beforeEditing(self):
-        pass
-        # self.wgWebsiteGrid.values = self.parentApp.websitesContainer.list_all_websites()
-        # self.wgWebsiteGrid.display()
+        if self.update_grid_on_display:
+            self.update_grid()
+            self.update_grid_on_display = False
 
     def on_ok(self):
         # This button will stop the app.
@@ -266,6 +303,10 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
         self.grid_updater.stop()
 
         self.parentApp.switchForm(None)
+
+    def update_grid(self):
+        self.wgWebsiteGrid.values = self.parentApp.websitesContainer.list_all_websites()
+        self.wgWebsiteGrid.display()
 
 
 # APP
@@ -277,6 +318,7 @@ class WebsiteMonitoringApplication(npyscreen.NPSAppManaged):
         self.addForm('ADD_WEBSITE', AddWebsiteForm)
         self.addForm('WEBSITE_INFO', WebsiteInfoForm)
         self.addForm('IMPORT_WEBSITE', ImportWebsiteForm)
+
 
 # TODO add timeout as arg
 
