@@ -46,21 +46,16 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
 
     def custom_print_cell(self, actual_cell, cell_display_value):
         """Custom printing of the cells: adding colors."""
-        # TODO Got an exception here with ValueError: better do this
         if cell_display_value == 'Timeout':
             actual_cell.color = 'DANGER'
         elif len(cell_display_value) > 0 and cell_display_value[-1] == '%':
-            try:
-                availability = int(cell_display_value[:-5])
-                if availability <= 80:
-                    actual_cell.color = 'DANGER'
-                elif availability <= 90:
-                    actual_cell.color = 'CAUTION'
-                else:
-                    actual_cell.color = 'GOOD'
-            except ValueError:
-                # This should not happen
-                pass
+            availability = int(cell_display_value[:-5])
+            if availability <= 80:
+                actual_cell.color = 'DANGER'
+            elif availability <= 90:
+                actual_cell.color = 'CAUTION'
+            else:
+                actual_cell.color = 'GOOD'
         else:
             actual_cell.color = 'WHITE'
 
@@ -97,9 +92,9 @@ class AlertBoxWidget(npyscreen.TitlePager):
 class PickTimeScaleWidget(npyscreen.MultiLine):
     def __init__(self, *args, **keywords):
         super(PickTimeScaleWidget, self).__init__(*args, **keywords)
-        self.add_handlers({curses.ascii.NL: self.actionHighlighted})
+        self.add_handlers({curses.ascii.NL: self.action_highlighted})
 
-    def actionHighlighted(self, inpt):
+    def action_highlighted(self, inpt):
         self.parent.display_info(self.values[self.cursor_line])
 
 
@@ -123,7 +118,7 @@ class AddWebsiteForm(npyscreen.ActionFormV2):
     def on_ok(self):
         self.value = True
         try:
-            self.checkSettings()
+            self.check_settings()
         except err.WhileCheckingException as e:
             npyscreen.notify_confirm(e.__doc__, editw=1)
 
@@ -150,7 +145,7 @@ class AddWebsiteForm(npyscreen.ActionFormV2):
             self.parentApp.getForm('MAIN').update_grid_on_display = True
             self.parentApp.switchForm('MAIN')
 
-    def checkSettings(self):
+    def check_settings(self):
         if not self.wgName.value:
             raise err.EmptyNameException
         if not self.wgAddress.value:
@@ -323,7 +318,8 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
     def create(self):
         """Create is called in the constructor of the form. Adds all the widgets and handlers and creates the menu."""
 
-        self.help = "Test"
+        # TODO Do help, or delete it
+        # self.help = "Test"
         self.wgWebsiteGrid = self.add(WebsiteGridWidget, name='Monitoring', max_height=25, rely=3)
         # TODO Don't hard code rely, otherwise app can't open if terminal not big enough.
         self.wgAlertBox = self.add(AlertBoxWidget, name='Alerts', rely=-10)
@@ -381,6 +377,7 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
         self.wgWebsiteGrid.values = self.parentApp.websitesContainer.list_all_websites()
         self.wgWebsiteGrid.display()
 
+
 # APPLICATION
 
 class WebsiteMonitoringApplication(npyscreen.NPSAppManaged):
@@ -389,6 +386,7 @@ class WebsiteMonitoringApplication(npyscreen.NPSAppManaged):
     The application is the object managing all the forms.
     The Npyscreen logic is : application > forms > widgets.
     """
+
     def onStart(self):
         """
         Method called when the app is started through the .run method in the main.
