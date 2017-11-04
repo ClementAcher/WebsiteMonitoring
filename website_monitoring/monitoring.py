@@ -4,11 +4,9 @@ import datetime
 import pandas as pd
 
 
-# TODO Handle case of wifi disconected directly
-
 class WebsiteHandler(object):
     # TODO Better define this
-    timeout = 0.3
+    timeout = 2
 
     def __init__(self, name, url, interval, parent):
         self._timer = None
@@ -52,9 +50,6 @@ class WebsiteHandler(object):
         self.is_running = False
 
     def ping_website(self):
-        # TODO Handle all exceptions possible : status code, no connexion, website does not exist... See requests doc
-        # TODO ConnectTimeoutError
-        # TODO Take a look at exception from the request library, can cover pretty much every thing. Add check for valid url
         with self.lock:
             now = datetime.datetime.now()
             try:
@@ -74,6 +69,9 @@ class WebsiteHandler(object):
                                                           'status code': str(response.status_code),
                                                           'elapsed': response.elapsed,
                                                           'OK': True}, ignore_index=True)
+                # TODO last_header = [[key, value] for key, value in self.last_header.items()]
+                # TODO AttributeError: 'NoneType' object has no attribute 'items'
+
                 self.last_header = response.headers
 
         if self.on_alert:
@@ -101,7 +99,7 @@ class WebsiteHandler(object):
                 else:
                     info += [self.connection_error['last check'].strftime('%H:%M:%S.%f')[:-3],  # Last check
                              'Connection error',  # Last status
-                             -1]  # Last Resp. Time
+                             0]  # Last Resp. Time
 
                 df_OK = self.df_history['OK'] == 1
                 now = datetime.datetime.now()
@@ -117,6 +115,7 @@ class WebsiteHandler(object):
         return info
 
     def elapsed_to_string(self, time_elapsed):
+        # TODO Absolutely change that, force padding. otherwise 2ms is like 0.2 s
         return '{}.{}s'.format(time_elapsed.seconds, time_elapsed.microseconds // 1000)
 
     def get_detailed_stats_fixed(self):
@@ -144,6 +143,7 @@ class WebsiteHandler(object):
                 mini = self.df_history.loc[mask & self.df_history['OK'] == 1]['elapsed'].min()
                 avg = self.df_history.loc[mask & self.df_history['OK'] == 1]['elapsed'].mean()
                 maxi = self.df_history.loc[mask & self.df_history['OK'] == 1]['elapsed'].max()
+
             elapsed_info = [[text, self.elapsed_to_string(time)] for text, time in
                             zip(['Min', 'Average', 'Max'], [mini, avg, maxi])]
             status_info = [[stat, count] for stat, count in zip(status, counts)]
@@ -153,13 +153,14 @@ class WebsiteHandler(object):
         return availability, status_info, elapsed_info, last_header
 
     def trigger_alert_check(self):
-        with self.lock:
-            now = datetime.datetime.now()
-            mask = self.df_history['date'] > (now - datetime.timedelta(minutes=2))
-            self.availability = self.df_history[mask]['OK'].mean()
-            if self.availability < 0.8:
-                self.parent.trigger_alert(self.name, self.availability, now)
-                self.on_alert = True
+        if not self.has_no_data():
+            with self.lock:
+                now = datetime.datetime.now()
+                mask = self.df_history['date'] > (now - datetime.timedelta(minutes=2))
+                self.availability = self.df_history[mask]['OK'].mean()
+                if self.availability < 0.8:
+                    self.parent.trigger_alert(self.name, self.availability, now)
+                    self.on_alert = True
 
     def recover_alert_check(self):
         with self.lock:
@@ -250,7 +251,3 @@ class GridUpdater(object):
         self._timer.cancel()
         self.is_running = False
 
-
-def ping_website_check(url):
-    response = requests.head(url, timeout=3)
-    return response.elapsed, response.status_code
