@@ -38,7 +38,7 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
 
     def action_selected(self, inpt):
         """Open a frame with more info on the website."""
-        if self.parent.parentApp.websitesContainer.get(self.edit_cell[0]).has_no_data():
+        if self.parent.parentApp.websitesContainer.get_website_handler(self.edit_cell[0]).has_no_data():
             npyscreen.notify_wait('No data yet, wait for the first ping.', 'No data yet')
         else:
             self.parent.parentApp.getForm('WEBSITE_INFO').value = self.edit_cell[0]
@@ -291,7 +291,7 @@ class WebsiteInfoForm(npyscreen.Form):
 
     def beforeEditing(self):
         self.clear()
-        self.name = "Website " + self.parentApp.websitesContainer.get(self.value).name
+        self.name = "Website " + self.parentApp.websitesContainer.get_website_handler(self.value).name
         self.wgSubtitle.value = 'Info with time frame: Nothing selected'
         self.wgFixedInfoGrid.values = self.parentApp.websitesContainer.get_detailed_stats_fixed(self.value)
 

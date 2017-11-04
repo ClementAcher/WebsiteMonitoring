@@ -2,6 +2,13 @@ import requests
 from threading import Timer, Lock
 import datetime
 import pandas as pd
+import logging
+
+logging.basicConfig(
+    filename="./log/events.log",
+    level=logging.INFO,
+    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
+)
 
 
 class WebsiteHandler(object):
@@ -32,7 +39,7 @@ class WebsiteHandler(object):
                                  'last check': None}
 
         self.on_alert = False
-        self.availability = None
+        self.availability = float('nan')
         self.last_header = None
 
     def has_no_data(self):
@@ -62,13 +69,14 @@ class WebsiteHandler(object):
                 self.connection_error['connection error'] = False
                 self.df_history = self.df_history.append({'date': now,
                                                           'status code': 'Timeout',
-                                                          'elapsed': datetime.timedelta(0),
+                                                          'elapsed': None,
                                                           'OK': False}, ignore_index=True)
             except requests.ConnectionError as e:
                 self.connection_error['connection error'] = True
                 self.connection_error['name'] = e.__class__.__name__
                 self.connection_error['details'] = e.__doc__
                 self.connection_error['last check'] = now
+                logging.debug('{} -- {}'.format(self.url, e.__doc__))
             else:
                 self.connection_error['connection error'] = False
                 self.df_history = self.df_history.append({'date': now,
@@ -130,7 +138,7 @@ class WebsiteHandler(object):
             return 'No data'
 
     def elapsed_to_string(self, time_elapsed):
-        if time_elapsed == time_elapsed:
+        if time_elapsed == time_elapsed and time_elapsed is not None:
             return '{}.{:03d}s'.format(time_elapsed.seconds, time_elapsed.microseconds // 1000)
         else:
             return 'No data'
@@ -168,7 +176,7 @@ class WebsiteHandler(object):
             if self.last_header is not None:
                 last_header = [[key, value] for key, value in self.last_header.items()]
             else:
-                last_header = ['No header']
+                last_header = [['No header']]
 
         return availability, status_info, elapsed_info, last_header
 
@@ -178,7 +186,7 @@ class WebsiteHandler(object):
             mask = self.df_history['date'] > (now - datetime.timedelta(minutes=2))
             self.availability = self.df_history[mask]['OK'].mean()
             if self.availability < 0.8:
-                self.parent.trigger_alert(self.name, self.availability, now)
+                self.parent.trigger_alert(self.url, self.name, self.availability, now)
                 self.on_alert = True
 
     def recover_alert_check(self):
@@ -186,7 +194,7 @@ class WebsiteHandler(object):
         mask = self.df_history['date'] > (now - datetime.timedelta(minutes=2))
         self.availability = self.df_history[mask]['OK'].mean()
         if self.availability > 0.8:
-            self.parent.recover_alert(self.name, self.availability, now)
+            self.parent.recover_alert(self.url, self.name, self.availability, now)
             self.on_alert = False
 
 
@@ -196,7 +204,7 @@ class WebsitesContainer(object):
         self.alert_box = None
         self.lock = Lock()
 
-    def get(self, index):
+    def get_website_handler(self, index):
         return self.website_handlers[index]
 
     def add(self, website):
@@ -221,19 +229,23 @@ class WebsitesContainer(object):
     def set_alert_box(self, wgAlertBox):
         self.alert_box = wgAlertBox
 
-    def trigger_alert(self, name, availability, now):
+    def trigger_alert(self, url, name, availability, now):
         with self.lock:
             assert self.alert_box is not None
             self.alert_box.add_line(
                 ["Website {} is down. availability={:.2f}, time={}".format(name, availability,
                                                                            now.strftime('%H:%M:%S.%f')[:-3])])
+            logging.info("Website {} is down. availability={:.2f}".format(url, availability,
+                                                                          now.strftime('%H:%M:%S.%f')[:-3]))
 
-    def recover_alert(self, name, availability, now):
+    def recover_alert(self, url, name, availability, now):
         with self.lock:
             assert self.alert_box is not None
             self.alert_box.add_line(
                 ["Website {} recovered. availability={:.2f}, time={}".format(name, availability,
                                                                              now.strftime('%H:%M:%S.%f')[:-3])])
+            logging.info("Website {} recovered. availability={:.2f}".format(url, availability,
+                                                                            now.strftime('%H:%M:%S.%f')[:-3]))
 
 
 class GridUpdater(object):
