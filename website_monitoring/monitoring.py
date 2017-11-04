@@ -3,8 +3,14 @@ from threading import Timer, Lock
 import datetime
 import pandas as pd
 import logging
+import os
 
+path_file = os.path.abspath(__file__)
+# open(path_file + "/log/events.log", 'a').close()
+
+# TODO Better path for this
 logging.basicConfig(
+    # filename=path_file + "/log/events.log",
     filename="./log/events.log",
     level=logging.INFO,
     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -13,7 +19,7 @@ logging.basicConfig(
 
 class WebsiteHandler(object):
     # TODO Better define this
-    timeout = 2
+    timeout = 3
 
     def __init__(self, name, url, interval, parent):
         self._timer = None

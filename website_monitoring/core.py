@@ -402,7 +402,11 @@ class WebsiteMonitoringApplication(npyscreen.NPSAppManaged):
 
 
 # TODO add timeout as arg
+# TODO handle terminal size problem
 
 if __name__ == '__main__':
     app = WebsiteMonitoringApplication()
+    # try:
     app.run()
+    # except npyscreen.wgwidget.NotEnoughSpaceForWidget:
+    #     print('Resize you terminal - make it bigger')
