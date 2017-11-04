@@ -88,7 +88,22 @@ On the main form, press `CTRL+X` to get the menu, select **Add website**, and fi
 
 ## Running the tests
 
-TODO
+### Global behavior
+
+Since it is actually hard to find a website that is likely to be down, but not all the time
+to test this program, I have added a script to create and run servers on the localhost that the
+user can easily set whether those servers will time out or not.
+
+To try this, run
+
+```
+cd tests
+python RunServers.py
+```
+
+After choosing the number of server you want to run, a JSON file will automatically 
+be created and added to the `file_to_import` folder, so that you can easily add them 
+in the app!
 
 ## License
 
