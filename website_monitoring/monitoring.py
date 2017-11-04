@@ -26,7 +26,11 @@ class WebsiteHandler(object):
                         "* 1 hour": datetime.timedelta(hours=1),
                         "* 24 hours": datetime.timedelta(days=1)}
 
-        self.connection_error = {'connection error': False, 'last check': None}
+        self.connection_error = {'connection error': False,
+                                 'name': None,
+                                 'details': None,
+                                 'last check': None}
+
         self.on_alert = False
         self.availability = None
         self.last_header = None
@@ -60,24 +64,24 @@ class WebsiteHandler(object):
                                                           'status code': 'Timeout',
                                                           'elapsed': datetime.timedelta(0),
                                                           'OK': False}, ignore_index=True)
-            except requests.ConnectionError:
+            except requests.ConnectionError as e:
                 self.connection_error['connection error'] = True
-                self.connection_error['last check'] = datetime.datetime.now()
+                self.connection_error['name'] = e.__class__.__name__
+                self.connection_error['details'] = e.__doc__
+                self.connection_error['last check'] = now
             else:
                 self.connection_error['connection error'] = False
                 self.df_history = self.df_history.append({'date': now,
                                                           'status code': str(response.status_code),
                                                           'elapsed': response.elapsed,
                                                           'OK': True}, ignore_index=True)
-                # TODO last_header = [[key, value] for key, value in self.last_header.items()]
-                # TODO AttributeError: 'NoneType' object has no attribute 'items'
 
                 self.last_header = response.headers
 
-        if self.on_alert:
-            self.recover_alert_check()
-        else:
-            self.trigger_alert_check()
+            if self.on_alert:
+                self.recover_alert_check()
+            else:
+                self.trigger_alert_check()
 
     def get_info_for_grid(self):
 
@@ -88,7 +92,12 @@ class WebsiteHandler(object):
 
         with self.lock:
             if self.has_no_data():
-                info += [None] * 8
+                if self.connection_error['connection error']:
+                    info += [self.connection_error['last check'].strftime('%H:%M:%S.%f')[:-3],  # Last check
+                             self.connection_error['name']]  # Last status
+                    info += [None] * 6
+                else:
+                    info += [None] * 8
             else:
                 # TODO clean that, a little bit messy
                 tail = self.df_history.tail(n=1).values
@@ -98,8 +107,8 @@ class WebsiteHandler(object):
                              self.elapsed_to_string(tail[0, 2])]  # Last Resp. Time
                 else:
                     info += [self.connection_error['last check'].strftime('%H:%M:%S.%f')[:-3],  # Last check
-                             'Connection error',  # Last status
-                             0]  # Last Resp. Time
+                             self.connection_error['name'],  # Last status
+                             None]  # Last Resp. Time
 
                 df_OK = self.df_history['OK'] == 1
                 now = datetime.datetime.now()
@@ -110,13 +119,21 @@ class WebsiteHandler(object):
                          self.elapsed_to_string(self.df_history.loc[mask_10min]['elapsed'].mean()),
                          self.elapsed_to_string(self.df_history.loc[mask_1hour]['elapsed'].max()),
                          self.elapsed_to_string(self.df_history.loc[mask_1hour]['elapsed'].mean()),
-                         '{:.2f} %'.format(self.availability * 100)]
+                         self.availability_to_string(self.availability)]
 
         return info
 
+    def availability_to_string(self, availability):
+        if availability == availability:
+            return '{:.2f} %'.format(self.availability * 100)
+        else:
+            return 'No data'
+
     def elapsed_to_string(self, time_elapsed):
-        # TODO Absolutely change that, force padding. otherwise 2ms is like 0.2 s
-        return '{}.{}s'.format(time_elapsed.seconds, time_elapsed.microseconds // 1000)
+        if time_elapsed == time_elapsed:
+            return '{}.{:03d}s'.format(time_elapsed.seconds, time_elapsed.microseconds // 1000)
+        else:
+            return 'No data'
 
     def get_detailed_stats_fixed(self):
         return [['Website', self.name], ['URL', self.url], ['Interval', self.interval]]
@@ -131,7 +148,7 @@ class WebsiteHandler(object):
             if converted is None:
                 status = self.df_history.groupby(by=['status code']).size().index.tolist()
                 counts = self.df_history.groupby(by=['status code']).size().tolist()
-                availability = self.df_history['OK'].mean()
+                availability = self.availability_to_string(self.df_history['OK'].mean())
                 mini = self.df_history.loc[self.df_history['OK'] == 1]['elapsed'].min()
                 avg = self.df_history.loc[self.df_history['OK'] == 1]['elapsed'].mean()
                 maxi = self.df_history.loc[self.df_history['OK'] == 1]['elapsed'].max()
@@ -139,7 +156,7 @@ class WebsiteHandler(object):
                 mask = self.df_history['date'] > (datetime.datetime.now() - converted)
                 status = self.df_history.loc[mask].groupby(by=['status code']).size().index.tolist()
                 counts = self.df_history.loc[mask].groupby(by=['status code']).size().tolist()
-                availability = self.df_history[mask]['OK'].mean()
+                availability = self.availability_to_string(self.df_history.loc[mask]['OK'].mean())
                 mini = self.df_history.loc[mask & self.df_history['OK'] == 1]['elapsed'].min()
                 avg = self.df_history.loc[mask & self.df_history['OK'] == 1]['elapsed'].mean()
                 maxi = self.df_history.loc[mask & self.df_history['OK'] == 1]['elapsed'].max()
@@ -148,28 +165,29 @@ class WebsiteHandler(object):
                             zip(['Min', 'Average', 'Max'], [mini, avg, maxi])]
             status_info = [[stat, count] for stat, count in zip(status, counts)]
 
-            last_header = [[key, value] for key, value in self.last_header.items()]
+            if self.last_header is not None:
+                last_header = [[key, value] for key, value in self.last_header.items()]
+            else:
+                last_header = ['No header']
 
         return availability, status_info, elapsed_info, last_header
 
     def trigger_alert_check(self):
         if not self.has_no_data():
-            with self.lock:
-                now = datetime.datetime.now()
-                mask = self.df_history['date'] > (now - datetime.timedelta(minutes=2))
-                self.availability = self.df_history[mask]['OK'].mean()
-                if self.availability < 0.8:
-                    self.parent.trigger_alert(self.name, self.availability, now)
-                    self.on_alert = True
-
-    def recover_alert_check(self):
-        with self.lock:
             now = datetime.datetime.now()
             mask = self.df_history['date'] > (now - datetime.timedelta(minutes=2))
             self.availability = self.df_history[mask]['OK'].mean()
-            if self.availability > 0.8:
-                self.parent.recover_alert(self.name, self.availability, now)
-                self.on_alert = False
+            if self.availability < 0.8:
+                self.parent.trigger_alert(self.name, self.availability, now)
+                self.on_alert = True
+
+    def recover_alert_check(self):
+        now = datetime.datetime.now()
+        mask = self.df_history['date'] > (now - datetime.timedelta(minutes=2))
+        self.availability = self.df_history[mask]['OK'].mean()
+        if self.availability > 0.8:
+            self.parent.recover_alert(self.name, self.availability, now)
+            self.on_alert = False
 
 
 class WebsitesContainer(object):
@@ -250,4 +268,3 @@ class GridUpdater(object):
     def stop(self):
         self._timer.cancel()
         self.is_running = False
-
