@@ -5,13 +5,11 @@ import pandas as pd
 import logging
 import os
 
-path_file = os.path.abspath(__file__)
-# open(path_file + "/log/events.log", 'a').close()
+dir = os.path.dirname(__file__)
 
 # TODO Better path for this
 logging.basicConfig(
-    # filename=path_file + "/log/events.log",
-    filename="./log/events.log",
+    filename=os.path.join(dir, "./log/events.log"),
     level=logging.INFO,
     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
 )

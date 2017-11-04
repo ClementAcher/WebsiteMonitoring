@@ -1,5 +1,6 @@
 import http.server
 import socketserver
+import os
 from time import sleep
 from threading import Thread
 import socket
@@ -76,7 +77,8 @@ def main():
         thread.start()
         sleep(1)
 
-    path_to_new_json = "./../website_monitoring/file_to_import/test_import.json"
+    dir = os.path.dirname(__file__)
+    path_to_new_json = os.path.join(dir, './../website_monitoring/file_to_import/test_import.json')
 
     with open(path_to_new_json, "w") as f:
         f.write(json.dumps(json_file))
