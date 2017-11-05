@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from .context import monitoring
+from context import monitoring
 # import context.website_monitoring
 
 import unittest
