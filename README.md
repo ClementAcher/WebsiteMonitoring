@@ -40,6 +40,7 @@ pip install -r requirements.txt
 ```
 
 **Note:** Depending on the setup of your PATH, you may need to use pip3 instead of pip to get the Python 3 version.
+The same goes in the following commands between python and python3.
 
 And you are good to go!
 
