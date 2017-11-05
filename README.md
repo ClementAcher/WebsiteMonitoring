@@ -60,9 +60,15 @@ Once the program is running, you can navigate through the widgets using `TAB` an
 
 #### Main form
 
-After launching the app, the main form will be displayed. This form contains a grid displaying all the websites currently monitored (empty when the app is started) with a few stats. The metrics of that grid are updated every 10 seconds.
+After launching the app, the main form will be displayed. This form contains a grid displaying all the websites currently 
+monitored (empty when the app is started) with a few stats. The metrics of that grid are updated every 10 seconds
+except for the hourly metrics that are updated every minute.
 
-The bottom part of that form contains a scrollable text box that will display all the alerts, an alert being website having its availability going below 80% for the last 2 minutes, or recovering from a previous alert.
+The bottom part of that form contains a scrollable text box that will display all the alerts, an alert being website 
+having its availability going below 80% for the last 2 minutes, or recovering from a previous alert.
+Those alerts are also logged using the logging Python module in the log folder. 
+
+**Note:** Setting the level of logging to DEBUG will also log the network errors! This can be set in `monitoring.py`.
 
 Press `CTRL+X` to open the menu and select **Import websites**.
 
@@ -76,6 +82,9 @@ From here, you can pick a JSON file containing websites entries to quickly add w
 
 The repository comes with a sample demo file. You can find it at `WebsiteMonitoring/website_monitoring/file_to_import/example_import.json`. Import it using the field to pick a file.
 
+**Note:** **Make sure to import proper files**. For efficiency reason, the URLs won't be checked during the import.
+This is yet done when the websites are added manually.
+
 #### Get detailed stats for a website
 
 Once the import is done, you will be sent back to the main form, but this time, the grid won't be empty!
@@ -88,6 +97,9 @@ You can close that form using the `OK` button.
 #### Manually add websites
 
 On the main form, press `CTRL+X` to get the menu, select **Add website**, and fill the empty fields!
+
+**Note:** it will check for invalid parameters and bad URL, but the website will be added even though there is already
+the same entry.
 
 ## Running the tests
 

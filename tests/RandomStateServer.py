@@ -14,6 +14,7 @@ from statistics import mean
 # The state of the server is randomly selected every 10 seconds. It also displays the availability ratio for the last
 # 2 minutes. Note that the WebsiteMonitoring will probably not display the same value due to the time shift between the
 # computation of the metric.
+# After two minutes, the app should display similar values though.
 
 PROBABILITY_OF_TIMEOUT = 0.2
 

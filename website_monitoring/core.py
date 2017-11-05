@@ -75,7 +75,6 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
 
 
 class AlertBoxWidget(npyscreen.TitlePager):
-    # TODO Bug: Can't go back to the grid once the titlepager has been selected
     def __init__(self, *args, **keywords):
         super(AlertBoxWidget, self).__init__(*args, **keywords)
         self.parent.parentApp.websitesContainer.set_alert_box(self)
@@ -205,6 +204,9 @@ class ImportWebsiteForm(npyscreen.ActionFormV2):
         except json.JSONDecodeError:
             npyscreen.notify_confirm('Cannot decode the file. Are you sure this is a JSON file?', 'Import error',
                                      editw=1)
+        except ValueError:
+            npyscreen.notify_confirm('The program ran into an error while importing the file.', 'Import error',
+                                     editw=1)
         else:
             npyscreen.notify('Import done.', 'Import')
 
@@ -307,8 +309,6 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
 
     GRID_UPDATE_FREQ = 10
 
-    # TODO Change the label of the OK button for something like EXIT if possible
-
     def create(self):
         """Create is called in the constructor of the form. Adds all the widgets and handlers and creates the menu."""
 
@@ -326,7 +326,6 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
 
         self.add_handlers({'t': self.h_selectGrid})
 
-    # TODO Not really good workaround...
     def h_selectGrid(self, inpt):
         """Callback to select the grid."""
         if self.editw != 0:
@@ -384,8 +383,6 @@ class WebsiteMonitoringApplication(npyscreen.NPSAppManaged):
         self.addForm('WEBSITE_INFO', WebsiteInfoForm)
         self.addForm('IMPORT_WEBSITE', ImportWebsiteForm)
 
-
-# TODO add timeout as arg
 
 if __name__ == '__main__':
     app = WebsiteMonitoringApplication()

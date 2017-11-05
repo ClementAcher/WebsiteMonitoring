@@ -143,6 +143,10 @@ class WebsiteHandler(object):
     def get_info_for_grid(self, small_update):
         """ Compute the metrics for the grid and return the values.
 
+        small_update:
+            False - all the grid is updated
+            True - all, except the hourly stats
+
         Returns: All the info to fill the grid:
                 ['Website', 'Interval Check', 'Last Check', 'Last Status', 'Last Resp. Time', 'availability (2 min)',
                            'MAX (10 min)', 'AVG (10 min)', 'MAX (1 hour)', 'AVG (1 hour)']
@@ -197,7 +201,7 @@ class WebsiteHandler(object):
         """Format for the availability fields."""
         # Check if availability == NaN (pandas returns NaN if there was no value to compute the metric)
         if availability == availability:
-            return '{:.2f} %'.format(self.availability * 100)
+            return '{:.2f} %'.format(availability * 100)
         else:
             return 'No data'
 
@@ -345,6 +349,10 @@ class GridUpdater(object):
         self.start()
 
     def updater(self):
+        """
+        Updates the grid. It ils fully updated every 60 seconds, and every 10 seconds, everything except the
+        hourly stats.
+        """
         full_update = (self.counter % 6 == 0)
         self.wgWebsiteGrid.values = self.main_form.parentApp.websitesContainer.list_all_websites(not full_update)
         self.counter += 1
