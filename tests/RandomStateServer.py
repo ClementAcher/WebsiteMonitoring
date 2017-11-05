@@ -9,16 +9,11 @@ import json
 from random import random
 from statistics import mean
 
-# This script will create and run a number chosen by the user of servers on the localhost that can be controlled.
-# The created servers can easily be set as running normally or as "fake" down server.
-# A file to quickly import the servers is created in the WebsiteMonitoring/website_monitoring/file_to_import folder.
-
-# Important note: the number of servers that can be created is limited to 5 because too many servers running at the
-# same time led to "ConnectionError" while handling certain requests. Even with a mximum of 5 servers running at the
-# same time, it might still happen from time to time. It is also the reason why the interval check time are
-# "desynchronised" to avoid several requests to the localhost at the same time.
-# This issue has nothing to do with the WebsiteMonitoring app, and might be solved by making the created servers even
-# simpler.
+# This script will create and run a server that will randomly timeout. The probability of a timeout is set to 0.2
+# but can be changed by changing the PROBABILITY_OF_TIMEOUT variable.
+# The state of the server is randomly selected every 10 seconds. It also displays the availability ratio for the last
+# 2 minutes. Note that the WebsiteMonitoring will probably not display the same value due to the time shift between the
+# computation of the metric.
 
 PROBABILITY_OF_TIMEOUT = 0.2
 
@@ -61,19 +56,14 @@ class ModifiedHandler(http.server.SimpleHTTPRequestHandler):
 def main():
     print("\nThis script will create and run HTTP servers on the localhost.")
 
-    handlers = []
-    count = 0
     json_file = {'websites': []}
-
-    # The interval times are "desynchronized" to avoid as much as possible simultaneous requests that may lead to
-    # ConnectionError.
 
     port = find_free_port()
     json_file['websites'].append({'name': 'Localhost: random state',
                                   'url': 'http://localhost:{}'.format(port),
                                   'interval': 5})
 
-    # Creating and starting thread containing the server
+    # Creating and starting the thread containing the server
     thread = Thread(target=start_server, args=(ModifiedHandler, port,))
     thread.setDaemon(True)
     thread.start()
@@ -102,7 +92,7 @@ def main():
         timeouts.append(timeout)
         ModifiedHandler.set_timeout(timeout)
         print('Timeout for the next 10 seconds: {}'.format(timeout))
-        print('Estimated availability for the last 2 min: {:.2f} %'.format(mean(timeouts[-12:]) * 100))
+        print('Estimated availability for the last 2 min: {:.2f} %'.format((1 - mean(timeouts[-12:])) * 100))
         sleep(10)
         print('\n')
 

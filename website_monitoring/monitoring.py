@@ -45,7 +45,7 @@ class WebsiteHandler(object):
         self.df_history = pd.DataFrame()
 
         self.convert = {"* All": None,
-                        "* 1 minute": datetime.timedelta(minutes=1),
+                        "* 2 minutes": datetime.timedelta(minutes=2),
                         "* 10 minutes": datetime.timedelta(minutes=10),
                         "* 1 hour": datetime.timedelta(hours=1),
                         "* 24 hours": datetime.timedelta(days=1)}
@@ -60,6 +60,7 @@ class WebsiteHandler(object):
         self.on_alert = False
         self.availability = float('nan')
         self.last_header = None
+        self.hourly_stats = ['No data', 'No data']
 
     def has_no_data(self):
         """True if there is no record."""
@@ -139,7 +140,7 @@ class WebsiteHandler(object):
         else:
             self.trigger_alert_check()
 
-    def get_info_for_grid(self):
+    def get_info_for_grid(self, small_update):
         """ Compute the metrics for the grid and return the values.
 
         Returns: All the info to fill the grid:
@@ -171,13 +172,24 @@ class WebsiteHandler(object):
                 df_OK = self.df_history['OK'] == 1
                 now = datetime.datetime.now()
                 mask_10min = (self.df_history['date'] > (now - datetime.timedelta(minutes=10))) & df_OK
-                mask_1hour = (self.df_history['date'] > (now - datetime.timedelta(hours=1))) & df_OK
 
-                info += [self.elapsed_to_string(self.df_history.loc[mask_10min]['elapsed'].max()),
-                         self.elapsed_to_string(self.df_history.loc[mask_10min]['elapsed'].mean()),
-                         self.elapsed_to_string(self.df_history.loc[mask_1hour]['elapsed'].max()),
-                         self.elapsed_to_string(self.df_history.loc[mask_1hour]['elapsed'].mean()),
-                         self.availability_to_string(self.availability)]
+                if not small_update:
+                    mask_1hour = (self.df_history['date'] > (now - datetime.timedelta(hours=1))) & df_OK
+
+                    info += [self.elapsed_to_string(self.df_history.loc[mask_10min]['elapsed'].max()),
+                             self.elapsed_to_string(self.df_history.loc[mask_10min]['elapsed'].mean()),
+                             self.elapsed_to_string(self.df_history.loc[mask_1hour]['elapsed'].max()),
+                             self.elapsed_to_string(self.df_history.loc[mask_1hour]['elapsed'].mean()),
+                             self.availability_to_string(self.availability)]
+
+                    self.hourly_stats = [info[7], info[8]]
+
+                else:
+                    info += [self.elapsed_to_string(self.df_history.loc[mask_10min]['elapsed'].max()),
+                             self.elapsed_to_string(self.df_history.loc[mask_10min]['elapsed'].mean()),
+                             self.hourly_stats[0],
+                             self.hourly_stats[1],
+                             self.availability_to_string(self.availability)]
 
         return info
 
@@ -283,11 +295,11 @@ class WebsitesContainer(object):
         """Returns the time dependent info of the index_th website."""
         return self.website_handlers[index].get_detailed_stats_dynamic(str_time_scale)
 
-    def list_all_websites(self):
+    def list_all_websites(self, small_update):
         """Returns the info to fill the grid."""
         grid_info = []
         for website_handler in self.website_handlers:
-            grid_info.append(website_handler.get_info_for_grid())
+            grid_info.append(website_handler.get_info_for_grid(small_update=small_update))
         return grid_info
 
     def stop_all_checks(self):
@@ -333,9 +345,9 @@ class GridUpdater(object):
         self.start()
 
     def updater(self):
-        self.wgWebsiteGrid.values = self.main_form.parentApp.websitesContainer.list_all_websites()
+        full_update = (self.counter % 6 == 0)
+        self.wgWebsiteGrid.values = self.main_form.parentApp.websitesContainer.list_all_websites(not full_update)
         self.counter += 1
-        # TODO : update different things when self.counter % x == 0
         if self.main_form.parentApp.getHistory()[-1] == 'MAIN':
             self.wgWebsiteGrid.display()
 

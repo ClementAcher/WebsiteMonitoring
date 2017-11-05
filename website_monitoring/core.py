@@ -238,7 +238,7 @@ class WebsiteInfoForm(npyscreen.Form):
         # Timeframe selector
         self.add(npyscreen.FixedText, value='Pick a time frame', color='WARNING', editable=False)
         self.wgPickTime = self.add(PickTimeScaleWidget, value=[1, ], max_height=6,
-                                   values=["* All", "* 1 minute", "* 10 minutes", "* 1 hour", "* 24 hours"],
+                                   values=["* All", "* 2 minutes", "* 10 minutes", "* 1 hour", "* 24 hours"],
                                    rely=4, relx=10, scroll_exit=True)
 
         # Global info
@@ -305,7 +305,7 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
 
      """
 
-    GRID_UPDATE_FREQ = 5
+    GRID_UPDATE_FREQ = 10
 
     # TODO Change the label of the OK button for something like EXIT if possible
 
@@ -360,7 +360,7 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
 
     def update_grid(self):
         """Update the grid widget."""
-        self.wgWebsiteGrid.values = self.parentApp.websitesContainer.list_all_websites()
+        self.wgWebsiteGrid.values = self.parentApp.websitesContainer.list_all_websites(False)
         self.wgWebsiteGrid.display()
 
 
