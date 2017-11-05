@@ -7,8 +7,6 @@ import json
 import exceptions as err
 
 
-# TODO add logging
-
 # WIDGETS
 
 class WebsiteGridWidget(npyscreen.GridColTitles):
@@ -17,7 +15,7 @@ class WebsiteGridWidget(npyscreen.GridColTitles):
 
         self.default_column_number = 10
         self.col_titles = ['Website',
-                           'Interval Check',
+                           'Interval Check (s)',
                            'Last Check',
                            'Last Status',
                            'Last Resp. Time',
@@ -101,13 +99,12 @@ class PickTimeScaleWidget(npyscreen.MultiLine):
 # FORMS
 
 class AddWebsiteForm(npyscreen.ActionFormV2):
-    # TODO Improve the look (smaller, add line between wg)
     def create(self):
         self.name = "New Website"
-        entry_pos = 25
+        entry_pos = 28
         self.wgName = self.add(npyscreen.TitleText, name="Entry name:", value="", begin_entry_at=entry_pos)
         self.wgAddress = self.add(npyscreen.TitleText, name="Website address:", begin_entry_at=entry_pos)
-        self.wgInterval = self.add(npyscreen.TitleText, name="Check interval:", begin_entry_at=entry_pos)
+        self.wgInterval = self.add(npyscreen.TitleText, name="Check interval (in sec):", begin_entry_at=entry_pos)
 
     def beforeEditing(self):
         if self.value is None:
@@ -125,7 +122,6 @@ class AddWebsiteForm(npyscreen.ActionFormV2):
         else:
             ping_message = """The script is going to perform a first ping to check if the URL is correct."""
             npyscreen.notify_confirm(ping_message, 'Checking the URL', editw=1)
-            # TODO I dont like doing that here, i need to import requests here just for that. Do it in monitoring
             try:
                 response = requests.head(self.wgAddress.value, timeout=5)
             except requests.Timeout:
@@ -312,17 +308,12 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
     GRID_UPDATE_FREQ = 5
 
     # TODO Change the label of the OK button for something like EXIT if possible
-    # TODO Add a widget on top to tell when was opened the app?
-    # TODO Dynamic partitioning between the grid and the alert box
 
     def create(self):
         """Create is called in the constructor of the form. Adds all the widgets and handlers and creates the menu."""
 
-        # TODO Do help, or delete it
-        # self.help = "Test"
-        self.wgWebsiteGrid = self.add(WebsiteGridWidget, name='Monitoring', max_height=25, rely=3)
-        # TODO Don't hard code rely, otherwise app can't open if terminal not big enough.
-        self.wgAlertBox = self.add(AlertBoxWidget, name='Alerts', rely=-10)
+        self.wgWebsiteGrid = self.add(WebsiteGridWidget, name='Monitoring', max_height=20, rely=3)
+        self.wgAlertBox = self.add(AlertBoxWidget, name='Alerts', rely=-15)
 
         self.main_menu = self.new_menu(name='Main menu')
 
@@ -334,17 +325,12 @@ class MainForm(npyscreen.FormWithMenus, npyscreen.ActionFormMinimal):
         self.update_grid_on_display = False
 
         self.add_handlers({'t': self.h_selectGrid})
-        self.add_handlers({'p': self.print_highlighted})
 
     # TODO Not really good workaround...
     def h_selectGrid(self, inpt):
         """Callback to select the grid."""
         if self.editw != 0:
-            self.wgAlertBox.add_line(['edit'])
             npyscreen.ActionFormMinimal.edit(self)
-
-    def print_highlighted(self, inpt):
-        self.wgAlertBox.add_line([self.editw])
 
     def get_form_add_website(self):
         """Method called from the menu: display the ADD_WEBSITE form."""
@@ -400,11 +386,10 @@ class WebsiteMonitoringApplication(npyscreen.NPSAppManaged):
 
 
 # TODO add timeout as arg
-# TODO handle terminal size problem
 
 if __name__ == '__main__':
     app = WebsiteMonitoringApplication()
-    # try:
-    app.run()
-    # except npyscreen.wgwidget.NotEnoughSpaceForWidget:
-    #     print('Resize you terminal - make it bigger')
+    try:
+        app.run()
+    except npyscreen.wgwidget.NotEnoughSpaceForWidget:
+        print('\nNot enough space. Please increase the size of your terminal.\n')
